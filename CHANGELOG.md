@@ -6,6 +6,28 @@ Todas as mudancas relevantes do projeto devem ser registradas aqui.
 
 ## 2026-07-11
 
+### Sprint 01 - Fundacao tecnica
+
+- Encerrada a Sprint 01 na branch `sprint/01-fundacao-local`.
+- Criada fundacao local da aplicacao com Next.js, React, TypeScript, Tailwind CSS, ESLint, Zod, Vitest, React Testing Library e jsdom.
+- Criada estrutura `src/app` com layout institucional, pagina inicial, loading, erro global, erro de rota e pagina not-found.
+- Criada validacao estrutural publica para `NEXT_PUBLIC_APP_NAME` e `NEXT_PUBLIC_APP_ENV`, sem segredos e sem `.env.local`.
+- Criados testes automatizados para pagina inicial, cabecalho, loading, not-found, estado de erro e configuracao publica.
+- Criados `README.md` e documentacao da Sprint 01.
+- Validados build, check completo, pagina inicial HTTP 200 e rota inexistente HTTP 404.
+- Registrada a correcao de acessibilidade para garantir um unico landmark `<main>` por pagina.
+- Concluidas as validacoes tecnicas da Sprint 01.
+- Identificada vulnerabilidade transitiva moderada CVE-2026-41305 / GHSA-qx2v-qp2m-jg93 em PostCSS abaixo de 8.5.10, via dependencia privada/transitiva do Next.js 16.2.10.
+- Preservado Next.js 16.2.10; `npm audit fix --force` nao foi executado para evitar downgrade forçado para Next.js 9.3.3.
+- Incluido acompanhamento do achado em `KNOWN_ISSUES.md`.
+
+### Corrigido - Sprint 01
+
+- Corrigida frase residual em `SPRINT_STATUS.md` que ainda indicava a Sprint 00 como nao concluida.
+- Corrigida frase residual em `SPRINT_STATUS.md` que ainda indicava a Sprint 01 como nao iniciada.
+- Corrigido aninhamento potencial de landmarks `<main>` em telas de erro e not-found, preservando um unico `main` por pagina.
+- Fechado o achado medio da revisao tecnica sem alterar dependencias.
+
 ### Encerrado
 
 - Encerrada documentalmente a Sprint 00.

@@ -44,6 +44,20 @@ Este documento lista incertezas, pendencias e riscos conhecidos na Sprint 00. Ne
 - Definir estrategia para impedir sobrescrita silenciosa de evolucoes finalizadas.
 - Definir estrategia de auditoria para consultas sensiveis e exportacoes.
 
+## Achados de seguranca em dependencias
+
+### CVE-2026-41305 / GHSA-qx2v-qp2m-jg93
+
+- Severidade: moderada.
+- Pacote afetado: PostCSS abaixo de 8.5.10.
+- Origem no projeto: dependencia privada/transitiva em `node_modules/next/node_modules/postcss`, incluida pelo Next.js 16.2.10.
+- Estado atual: nao ha correcao estavel segura disponivel no conjunto de versoes utilizado nesta Sprint 01.
+- A vulnerabilidade nao esta resolvida.
+- E proibido executar `npm audit fix --force` para este achado, pois a correcao forçada tentaria instalar Next.js 9.3.3, causando downgrade incompativel e destrutivo.
+- O risco atual e reduzido porque a Sprint 01 nao aceita CSS controlado por usuario e nao implementa modulos clinicos, APIs, banco, autenticacao ou hospedagem publica.
+- O achado deve ser reavaliado a cada atualizacao estavel do Next.js.
+- Homologacao publica ou producao ficam bloqueadas caso a vulnerabilidade continue sem mitigacao adequada.
+
 ## Aprofundamentos futuros de seguranca
 
 Os topicos abaixo serao detalhados em sprints futuras e nao estao sendo implementados na Sprint 00:

@@ -9,7 +9,7 @@ As sprints constroem progressivamente a Visao Funcional Completa. A Primeira Ver
 | Etapa | Nome | Status |
 | --- | --- | --- |
 | Sprint 00 | Documentacao permanente | Concluída |
-| Sprint 01 | Fundacao tecnica do projeto | Pendente |
+| Sprint 01 | Fundacao tecnica do projeto | Concluída |
 | Sprint 02 | Design system e estrutura visual | Pendente |
 | Sprint 03 | Autenticacao e contexto institucional | Pendente |
 | Sprint 04 | Administracao e governanca inicial | Pendente |
@@ -35,7 +35,7 @@ As sprints constroem progressivamente a Visao Funcional Completa. A Primeira Ver
 
 ## Regra de atualizacao
 
-- A Sprint 00 permanece como "Em implementacao" ou "Em validacao documental" ate validacao de Manoel Neto.
+- A Sprint 00 permanece concluida apos validacao documental de Manoel Neto.
 - Nenhuma sprint deve ser marcada como concluida sem validacao.
 - Nenhuma sprint futura deve ser iniciada sem autorizacao explicita.
 
@@ -45,7 +45,14 @@ O modulo Inicio sera a central de comando e apresentacao resumida da plataforma.
 
 ## Observacao sobre historico, evolucoes e acesso
 
-Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao, retificacao, matriz de acesso e areas de trabalho por perfil foram documentados na Sprint 00 para implementacao futura. A Sprint 00 permanece em validacao documental e nao esta concluida.
+Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao, retificacao, matriz de acesso e areas de trabalho por perfil foram documentados na Sprint 00 para implementacao futura. A Sprint 01 foi concluida sem implementar modulos clinicos.
+
+## Observacao sobre Sprint 01
+
+- Todas as validacoes funcionais da fundacao tecnica passaram: lint, typecheck, testes, build, check, pagina inicial HTTP 200 e rota inexistente HTTP 404.
+- A Sprint 01 foi concluida com 6 arquivos de teste e 14 testes aprovados.
+- Ha ressalva de seguranca transitiva documentada em `KNOWN_ISSUES.md`: CVE-2026-41305 / GHSA-qx2v-qp2m-jg93 em PostCSS abaixo de 8.5.10, via dependencia privada/transitiva do Next.js 16.2.10.
+- A Sprint 02 nao foi iniciada.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 
@@ -57,4 +64,4 @@ A Sprint 06 trata rede de referencia, comunicacao institucional e relacionamento
 - Sprint 00 aprovada para encerramento documental.
 - Primeiro commit autorizado na branch `sprint/00-documentacao`.
 - Todas as demais sprints permanecem pendentes.
-- A Sprint 01 nao foi iniciada.
+- A Sprint 01 foi iniciada posteriormente na branch `sprint/01-fundacao-local` e concluida apos validacao tecnica.
