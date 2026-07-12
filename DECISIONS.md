@@ -326,3 +326,26 @@ Nenhum `platform_admin`, usuario inicial, organization, hospital ou membership s
 O provisionamento inicial do `platform_admin` sera definido posteriormente por procedimento administrativo seguro e documentado.
 
 Motivo: impedir credenciais, usuarios ou dados institucionais permanentes dentro de migracoes estruturais.
+
+### DEC-046 - Supabase SSR com chave publicavel e Proxy sem autorizacao na Sprint 03B
+
+A Sprint 03B usara `@supabase/ssr` e `@supabase/supabase-js` como base oficial para clientes Supabase no navegador e no servidor.
+
+Serao usados clientes separados:
+
+- `createBrowserClient` para o navegador;
+- `createServerClient` para servidor e Proxy.
+
+A aplicacao usara somente `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` como variaveis publicas da integracao Supabase nesta fase.
+
+Service role, secret key, senha de banco, JWT secret, connection strings e chaves privadas nao poderao ser usadas no cliente nem receber prefixo `NEXT_PUBLIC_`.
+
+Cookies serao a base da integracao SSR. O Proxy do Next.js sera implementado em `src/proxy.ts`, nao em `middleware.ts`, e ficara restrito a renovacao segura de sessao.
+
+O Proxy devera chamar `getClaims()` para renovacao e validacao criptografica possivel do token, sem usar `getSession()` como base de autorizacao no servidor.
+
+Durante a Sprint 03B, o Proxy nao redirecionara usuarios, nao classificara rotas como publicas ou protegidas, nao consultara `profiles`, memberships ou tabelas institucionais e nao decidira autorizacao.
+
+A validacao de ambiente sera preguicosa: variaveis publicas do Supabase serao lidas apenas quando os clientes forem criados ou quando o Proxy for executado. Isso preserva lint, typecheck, testes e build sem `.env.local`, desde que a aplicacao atual nao chame Supabase durante geracao estatica.
+
+Motivo: preparar a fundacao SSR segura para autenticacao futura sem antecipar login, logout, protecao de rotas, contexto ativo ou autorizacao institucional.

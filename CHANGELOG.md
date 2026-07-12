@@ -47,6 +47,30 @@ Todas as mudancas relevantes do projeto devem ser registradas aqui.
 - Mantido o acompanhamento da vulnerabilidade moderada transitiva de PostCSS em `KNOWN_ISSUES.md`, sem executar correcao forcada.
 - Mantidas Sprint 03B, Sprint 03C e Sprint 03D como nao iniciadas.
 
+### Implementacao - Sprint 03B
+
+- Iniciada a Sprint 03B com infraestrutura Supabase SSR, sem implementar login, logout, protecao de rotas, redirecionamentos, convites, usuarios ou contexto ativo.
+- Instaladas as dependencias diretas `@supabase/supabase-js` e `@supabase/ssr` em versoes exatas.
+- Criado `.env.example` com placeholders seguros para `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+- Criada validacao publica centralizada e preguicosa para variaveis Supabase, sem expor valores recebidos em mensagens de erro.
+- Criados clientes Supabase tipados para navegador e servidor usando `Database` de `src/types/database.types.ts`.
+- Criado `src/lib/supabase/proxy.ts` para renovacao de sessao por cookies com `getClaims()`, sem `getSession`, sem redirect e sem consulta institucional.
+- Criado `src/proxy.ts`, sem criar `middleware.ts`, delegando exclusivamente para `updateSession`.
+- Criados testes unitarios com mocks para ambiente, cliente browser, cliente server, Proxy, matcher e revisao estatica de seguranca.
+- Confirmado que Sprint 03C e Sprint 03D permanecem nao iniciadas.
+
+### Validacao tecnica - Sprint 03B
+
+- Registrada a Sprint 03B como em validacao tecnica.
+- Confirmadas dependencias exatas `@supabase/supabase-js@2.110.2` e `@supabase/ssr@0.12.0`.
+- Aprovados lint, typecheck, 11 arquivos de testes, 43 testes, build sem `.env.local` e check completo.
+- Confirmada ausencia de `getSession` nos arquivos de codigo da Sprint 03B.
+- Confirmado uso de `getClaims` no Proxy.
+- Confirmada ausencia de redirect, login funcional, protecao de rotas e contexto ativo.
+- Confirmado que `src/types/database.types.ts`, migracoes e testes SQL nao foram alterados.
+- Confirmado que Docker e Supabase local nao foram iniciados nesta auditoria.
+- Auditorias npm mantiveram apenas a vulnerabilidade moderada ja conhecida de PostCSS via Next.js, sem vulnerabilidade alta ou critica nova.
+
 ### Encerramento - Sprint 02
 
 - Encerrada a Sprint 02 na branch `sprint/02-banco-local-migracoes`.

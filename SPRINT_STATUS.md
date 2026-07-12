@@ -86,7 +86,11 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
 - `src/types/database.types.ts` foi regenerado pela Supabase CLI.
 - Supabase local foi encerrado apos a validacao e `docker ps` foi validado sem conteineres em execucao.
 - Nenhuma tabela clinica, dado real, dado clinico, usuario real, credencial versionada ou projeto Supabase remoto foi criado.
-- Sprint 03B, Sprint 03C e Sprint 03D permanecem nao iniciadas.
+- Sprint 03B esta em validacao tecnica: infraestrutura Supabase SSR, validacao publica de ambiente, clientes tipados, cookies e Proxy de renovacao de sessao.
+- Sprint 03B nao implementa login, logout, protecao de rotas, redirecionamentos, convites, usuarios, contexto ativo, APIs de negocio, novas tabelas ou novas migracoes.
+- Validacao tecnica da Sprint 03B: lint, typecheck, 11 arquivos de testes, 43 testes, build sem `.env.local` e check completo aprovados.
+- Auditorias npm da Sprint 03B mantem apenas a vulnerabilidade moderada ja conhecida de PostCSS via Next.js, sem vulnerabilidade alta ou critica nova.
+- Sprint 03C e Sprint 03D permanecem nao iniciadas.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 

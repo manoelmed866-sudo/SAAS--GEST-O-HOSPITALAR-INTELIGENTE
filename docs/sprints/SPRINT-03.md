@@ -8,7 +8,9 @@ Sprint 03: Em execucao.
 
 Sprint 03A: Concluida.
 
-Sprints 03B, 03C e 03D: Nao iniciadas.
+Sprint 03B: Em validacao tecnica.
+
+Sprints 03C e 03D: Nao iniciadas.
 
 Este documento registra o planejamento documental da Sprint 03, a implementacao da Sprint 03A e seu encerramento tecnico controlado. Nenhum codigo funcional TypeScript, dependencia adicional, tela, API, usuario, dado clinico, dado real, Supabase remoto ou autenticacao visual foi criado nesta etapa.
 
@@ -68,7 +70,7 @@ Planejar a fundacao de acesso seguro para uma plataforma SaaS multi-instituicao 
 - Homologacao publica.
 - Producao.
 - Dados reais.
-- Sprint 03B, 03C e 03D.
+- Sprint 03C e 03D.
 
 ## Principios de seguranca
 
@@ -867,7 +869,6 @@ Apos as correcoes, nova validacao local foi executada e aprovada: `db:reset`, `d
 
 Permanecem nao implementados e reservados para as proximas fases da Sprint 03:
 
-- Sprint 03B: clientes Supabase, sessao SSR, `proxy.ts` e validacao de ambiente.
 - Sprint 03C: login, logout, rotas protegidas e fluxo visual de autenticacao.
 - Sprint 03D: contexto institucional ativo e area institucional minima.
 
@@ -882,6 +883,146 @@ Tambem permanecem fora da Sprint 03A:
 - Pacientes, episodios, protocolos, exames, prescricoes, estoque ou faturamento.
 - Dados reais.
 - Vinculo com projeto Supabase remoto.
+
+## Implementacao da Sprint 03B
+
+### Estado
+
+- Sprint 03 permanece em execucao.
+- Sprint 03A permanece concluida.
+- Sprint 03B esta em validacao tecnica.
+- Sprint 03C permanece nao iniciada.
+- Sprint 03D permanece nao iniciada.
+
+Esta fase cria somente a infraestrutura tecnica para Supabase SSR, validacao publica de ambiente, clientes tipados, cookies e Proxy de renovacao de sessao. Login, logout, protecao de rotas, redirecionamentos, convites, usuarios, contexto ativo, APIs de negocio, novas tabelas e novas migracoes permanecem fora desta etapa.
+
+### Dependencias instaladas
+
+- `@supabase/supabase-js` em versao exata `2.110.2`.
+- `@supabase/ssr` em versao exata `0.12.0`.
+
+As versoes exatas ficam registradas em `package.json` e `package-lock.json`. `@supabase/auth-helpers-nextjs`, bibliotecas de UI de autenticacao, ORM, bibliotecas adicionais de cookies, estado global, formularios ou autenticacao alternativa nao foram adotadas.
+
+### Variaveis publicas adotadas
+
+A Sprint 03B adota somente:
+
+- `NEXT_PUBLIC_SUPABASE_URL`;
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+
+Nao sao adotadas variaveis de service role, secret key, senha de banco, JWT secret, connection string, access key de Storage ou secret key de Storage.
+
+Foi criado `.env.example` apenas com placeholders seguros. `.env.local` nao foi criado e nao deve ser versionado. Nenhuma chave real deve ser copiada de `supabase status` para documentacao, codigo ou commit.
+
+### Arquivos criados
+
+- `.env.example`;
+- `src/lib/env/public.ts`;
+- `src/lib/supabase/client.ts`;
+- `src/lib/supabase/server.ts`;
+- `src/lib/supabase/proxy.ts`;
+- `src/proxy.ts`;
+- testes unitarios da Sprint 03B para ambiente, cliente browser, cliente server, Proxy e revisao estatica de seguranca.
+
+### Validacao de ambiente
+
+`src/lib/env/public.ts` usa Zod para validar as variaveis publicas do Supabase apenas quando a funcao e chamada. A validacao:
+
+- aceita URL valida;
+- exige chave publicavel nao vazia;
+- rejeita chave privada com prefixo reservado;
+- rejeita valor que indique service role;
+- retorna objeto imutavel e tipado;
+- produz erro claro sem imprimir o valor recebido;
+- nao acessa variaveis privadas;
+- nao falha no carregamento do modulo.
+
+Essa estrategia permite lint, typecheck, testes e build sem `.env.local`, desde que clientes Supabase nao sejam chamados durante geracao estatica.
+
+### Cliente do navegador
+
+`src/lib/supabase/client.ts` exporta `createClient()` usando `createBrowserClient` de `@supabase/ssr`, tipos `Database` gerados em `src/types/database.types.ts` e variaveis validadas por `getPublicEnv()`.
+
+O cliente do navegador:
+
+- nao usa service role;
+- nao manipula JWT manualmente;
+- nao acessa `localStorage` diretamente;
+- nao implementa login;
+- nao implementa redirecionamento;
+- nao cria cliente durante import do modulo.
+
+### Cliente do servidor
+
+`src/lib/supabase/server.ts` exporta `async createClient()` usando `createServerClient` de `@supabase/ssr`, tipos `Database`, `cookies()` de `next/headers`, `getAll` para leitura e `setAll` para escrita quando o contexto permitir.
+
+Server Components podem ter cookies somente leitura; nesse caso, apenas o erro esperado de escrita e tratado. Erros desconhecidos continuam sendo propagados. O Proxy fica responsavel pela renovacao regular da sessao.
+
+O cliente do servidor:
+
+- nao usa chave privada;
+- nao chama autenticacao automaticamente;
+- nao chama `getSession`;
+- nao decide autorizacao;
+- nao consulta `profiles`, memberships ou qualquer tabela institucional;
+- nao reutiliza cliente global entre requisicoes.
+
+### Atualizacao de sessao no Proxy
+
+`src/lib/supabase/proxy.ts` exporta `updateSession(request)`.
+
+O Proxy:
+
+- valida as variaveis publicas;
+- cria resposta inicial com `NextResponse.next()`;
+- cria cliente SSR tipado;
+- le cookies da requisicao;
+- aplica cookies retornados pelo Supabase na requisicao e na resposta;
+- copia headers retornados pelo Supabase;
+- chama `supabase.auth.getClaims()`;
+- retorna a resposta final.
+
+O Proxy nao usa `getSession`, nao confia no conteudo bruto do cookie, nao consulta tabelas institucionais, nao redireciona, nao define rota publica ou protegida, nao implementa autorizacao, nao registra cookies, nao registra claims e nao apaga cookies externos ao Supabase.
+
+### Proxy do Next.js
+
+`src/proxy.ts` exporta a funcao nomeada `proxy(request)` e delega exclusivamente para `updateSession(request)`.
+
+Nao foi criado `middleware.ts`. O matcher exclui ativos estaticos essenciais como `_next/static`, `_next/image`, `favicon.ico`, `robots.txt`, `sitemap.xml` e arquivos comuns de imagem ou assets, sem excluir prematuramente paginas futuras de login ou areas internas.
+
+### Limites preservados na Sprint 03B
+
+- Protecao de rotas fica reservada para Sprint 03C.
+- Login visual fica reservado para Sprint 03C.
+- Logout fica reservado para Sprint 03C.
+- Pagina de acesso negado fica reservada para Sprint 03C.
+- Contexto institucional ativo fica reservado para Sprint 03D.
+- Seletor de hospital ou organization fica reservado para Sprint 03D.
+- Nenhuma API, Route Handler ou Server Action de negocio foi criada.
+- Nenhuma nova tabela ou migracao foi criada.
+- RLS, grants, papeis e permissoes nao foram alterados.
+- `src/types/database.types.ts` nao deve ser alterado manualmente nesta fase.
+
+### Validacao da Sprint 03B
+
+A implementacao escrita da Sprint 03B foi auditada tecnicamente e validada por:
+
+- lint aprovado;
+- typecheck aprovado;
+- 11 arquivos de testes unitarios aprovados;
+- 43 testes aprovados;
+- build aprovado sem `.env.local`;
+- check completo aprovado;
+- `npm audit --omit=dev` e `npm audit` executados sem vulnerabilidade alta ou critica nova;
+- auditorias npm retornaram apenas a vulnerabilidade moderada ja conhecida de PostCSS via Next.js;
+- revisao estatica confirmou ausencia de `getSession` nos arquivos de codigo da Sprint 03B;
+- revisao estatica confirmou uso de `getClaims` no Proxy;
+- revisao estatica confirmou ausencia de redirect;
+- revisao estatica confirmou ausencia de login funcional;
+- revisao estatica confirmou ausencia de dados reais, segredos e credenciais;
+- revisao confirmou ausencia de Docker, Supabase local, migracoes, testes SQL e geracao de tipos nesta etapa de auditoria.
+
+A Sprint 03B permanece sem autenticar usuarios, sem proteger rotas e sem definir contexto ativo. A Sprint 03C e a Sprint 03D permanecem nao iniciadas.
 
 ## Decisoes aprovadas incorporadas
 
