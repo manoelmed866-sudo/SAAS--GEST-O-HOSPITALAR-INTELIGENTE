@@ -367,3 +367,13 @@ A verificacao de acesso hospitalar em `src/lib/auth/access.ts` nao devera exigir
 A exigencia de organization ativa continua garantida de forma transitiva pela funcao privada `current_user_has_hospital_permission`, que valida organization e hospital ativos ao autorizar a leitura de `hospitals` por RLS.
 
 Motivo: usuario com vinculo hospitalar valido, mas sem papel de escopo organizacao, nao possui permissao de leitura em `organizations`, entao exigir essa leitura em join interno nega indevidamente o acesso. A decisao preserva menor privilegio e evita ampliar permissoes ou afrouxar RLS apenas para satisfazer a consulta de aplicacao. Um teste pgTAP de regressao para usuario hospital-only protege essa decisao.
+
+### DEC-049 - Inventario de acessos por RLS sem migration na Sprint 03D1
+
+O inventario de contexto institucional da Sprint 03D1, em `src/lib/auth/context.ts`, listara organizations e hospitals ativos consultando as proprias tabelas com filtro `status = 'active'` e delegando a autorizacao definitiva ao RLS da Sprint 03A, sem reconstruir joins de permissao na aplicacao e sem nova migration (Opcao A).
+
+O inventario nao resolve papeis ativos, que ficam reservados para a revalidacao do contexto selecionado nas etapas 03D3 e 03D4. Um usuario hospital-only sem papel de escopo organizacao podera receber a lista de organizations vazia e a lista de hospitals preenchida, porque o RLS nao lhe concede leitura em `organizations`, mas concede leitura no proprio hospital.
+
+A funcao retorna um resultado discriminado `success` ou `error`. Em erro de qualquer consulta, retorna `error` sem dados parciais e sem converter erro em inventario vazio, preservando o comportamento fail-closed. Usa apenas o cliente Supabase server-side autenticado, sem service role.
+
+Motivo: manter a separacao entre autenticacao, autorizacao e contexto ativo, tratando o RLS como fonte unica de verdade da autorizacao, sem ampliar grants ou politicas sem necessidade comprovada e sem exibir instituicoes nao autorizadas. Exibir o nome da organization para usuario hospital-only, que exigiria nova politica de leitura, fica adiado para uma decisao futura especifica caso a necessidade se confirme.

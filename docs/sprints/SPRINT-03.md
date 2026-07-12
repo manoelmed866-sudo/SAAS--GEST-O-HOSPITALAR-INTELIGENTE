@@ -12,7 +12,7 @@ Sprint 03B: Concluida tecnicamente e versionada.
 
 Sprint 03C: Concluida e validada localmente.
 
-Sprint 03D: Nao iniciada.
+Sprint 03D: Em execucao. Sprint 03D1 concluida como checkpoint; Sprint 03D2, 03D3, 03D4 e 03D5 nao iniciadas.
 
 Este documento registra o planejamento documental da Sprint 03, as implementacoes controladas das Sprints 03A, 03B e 03C e seus limites. A Sprint 03C criou fluxo visual de login/logout, protecao de rota e acesso negado, sem implementar Sprint 03D, APIs de negocio, novas tabelas, migracoes, usuarios, dados clinicos, dados reais ou Supabase remoto.
 
@@ -1165,6 +1165,47 @@ Resultado tecnico confirmado da Sprint 03C:
 - Confirmado que `.env.local` permanece ignorado e que nenhum segredo, token, JWT, service role, senha ou URL com credencial foi versionado.
 - Confirmado que nenhum usuario ficticio ou dado de validacao permanente foi versionado; o `seed.sql` continua vazio e as fixtures pgTAP sao transacionais com `rollback`.
 - Vulnerabilidade moderada transitiva ja conhecida de PostCSS via Next.js permanece acompanhada em `KNOWN_ISSUES.md`; `npm audit fix --force` permanece proibido por causar downgrade forcado do Next.js.
+
+### Implementacao e validacao da Sprint 03D1 - Inventario de acessos
+
+Estado: Sprint 03D1 concluida como checkpoint independente. Sprint 03D2, 03D3, 03D4 e 03D5 permanecem nao iniciadas.
+
+Escopo entregue:
+
+- Criada a camada server-side de inventario em `src/lib/auth/context.ts`, funcao `getAuthorizedContextInventory`, que lista as organizations e hospitals ativos e autorizados ao usuario atual.
+- Nenhuma UI, nenhum seletor, nenhuma persistencia de contexto e nenhum papel ativo resolvido nesta etapa. Papeis ficam reservados para a revalidacao de contexto das etapas 03D3 e 03D4, evitando joins adicionais e duplicacao da autorizacao.
+
+Arquitetura e seguranca:
+
+- O RLS da Sprint 03A e o filtro definitivo. As consultas selecionam apenas `status = 'active'` e delegam a autorizacao ao banco, sem reconstruir joins de permissao no TypeScript.
+- Opcao A sem migration: nenhuma migration, politica RLS, grant, papel ou permissao foi criada ou alterada.
+- Uso exclusivo do cliente Supabase server-side autenticado, sem service role.
+- Consultas com campos explicitos, sem `select("*")`, com ordenacao deterministica por `display_name` e depois `id`.
+- Usuario hospital-only sem papel organizacional pode receber `organizations` vazio e `hospitals` preenchido, refletindo o menor privilegio ja garantido pelo RLS.
+
+Contrato de retorno:
+
+- Sucesso: `{ status: "success", inventory: { organizations, hospitals, hospitalCount } }`, com `hospitalCount` igual a `hospitals.length`.
+- Erro em qualquer consulta: `{ status: "error" }`, sem dados parciais e sem converter erro em inventario vazio.
+- Inventario vazio legitimo retorna `success` com listas vazias e `hospitalCount` zero.
+- Decisao registrada em `DECISIONS.md` como DEC-049.
+
+Testes adicionados:
+
+- `tests/unit/auth-context.test.ts`: Supabase mockado, cobre normalizacao snake_case para camelCase, conversao de `organization_id` para `organizationId`, derivacao de `hospitalCount`, organizations vazio com hospitals preenchido, inventario totalmente vazio e fail-closed em erro. A suite nao valida RLS.
+- `supabase/tests/005-sprint-03d-context-inventory.test.sql`: sob `authenticated`, transacional com `rollback`, cobrindo usuario institucional, papel organizacional visualizando hospitais da organizacao, usuario hospital-only sem leitura de organizations, usuario multi-hospital, hospital suspenso, organization suspensa, hospital de outro tenant e vinculo hospitalar revogado.
+
+Resultado tecnico confirmado da Sprint 03D1:
+
+- Lint aprovado.
+- Typecheck aprovado.
+- 84 testes unitarios aprovados.
+- Build aprovado.
+- `db:lint` aprovado.
+- 83 verificacoes pgTAP aprovadas.
+- `git diff --check` sem erros de espaco em branco ou conflito.
+- Confirmado que nenhuma migration, RLS, grant, papel ou permissao foi alterada.
+- Confirmado que `.env.local` permanece ignorado e que nenhuma chave, token, JWT, service role, senha ou URL com credencial foi versionada, incluindo qualquer saida do `db:start`.
 
 ## Decisoes aprovadas incorporadas
 

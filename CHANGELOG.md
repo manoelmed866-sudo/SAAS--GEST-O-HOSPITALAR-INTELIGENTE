@@ -6,6 +6,18 @@ Todas as mudancas relevantes do projeto devem ser registradas aqui.
 
 ## 2026-07-12
 
+### Checkpoint - Sprint 03D1 - Inventario de acessos
+
+- Criada a camada server-side de inventario em `src/lib/auth/context.ts`, funcao `getAuthorizedContextInventory`, que lista as organizations e hospitals ativos e autorizados ao usuario atual, sem UI, sem seletor, sem persistencia de contexto e sem papeis ativos (papeis ficam reservados para a revalidacao de contexto das etapas 03D3/03D4).
+- Confirmado que o RLS da Sprint 03A e o filtro definitivo: as consultas selecionam apenas `status = 'active'` e delegam a autorizacao ao banco, sem reconstruir joins de permissao no TypeScript.
+- Adotada a Opcao A sem migration: nenhuma migration, politica RLS, grant, papel ou permissao foi criada ou alterada; o inventario usa exclusivamente o cliente Supabase server-side autenticado, sem service role.
+- Registrado que um usuario hospital-only sem papel organizacional pode receber `organizations` vazio e `hospitals` preenchido, refletindo o menor privilegio ja garantido pelo RLS.
+- Definido retorno discriminado `{ status: "success", inventory }` ou `{ status: "error" }`: em caso de erro em qualquer consulta a funcao retorna `error`, nunca dados parciais e nunca converte erro em inventario vazio; inventario vazio legitimo retorna `success` com listas vazias e `hospitalCount` igual a `hospitals.length`.
+- Consultas com campos explicitos, sem `select("*")`, com ordenacao deterministica por `display_name` e `id`.
+- Adicionado teste unitario `tests/unit/auth-context.test.ts` (Supabase mockado, cobre normalizacao, derivacao de `hospitalCount` e fail-closed, nao valida RLS).
+- Adicionado teste pgTAP `supabase/tests/005-sprint-03d-context-inventory.test.sql`, sob `authenticated`, transacional com `rollback`, cobrindo usuario institucional, usuario hospital-only, usuario multi-hospital, hospital suspenso, organization suspensa, hospital de outro tenant e vinculo hospitalar revogado.
+- Aprovados lint, typecheck, 84 testes unitarios, build, `db:lint` e 83 verificacoes pgTAP; nenhuma migration, RLS, grant, papel ou permissao alterada.
+
 ### Correcao e validacao - Sprint 03C
 
 - Corrigido defeito de autorizacao em `src/lib/auth/access.ts`: a consulta do gate hospitalar embutia `organizations!inner` e filtrava `organization_memberships.organizations.status`, exigindo leitura de `organizations` que o RLS nega a usuario hospitalar sem papel organizacional; por ser join interno, o vinculo hospitalar inteiro era descartado e o acesso negado indevidamente.

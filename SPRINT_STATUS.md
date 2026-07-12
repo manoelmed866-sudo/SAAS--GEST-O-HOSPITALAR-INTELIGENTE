@@ -97,7 +97,11 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
 - Validacao manual end-to-end da Sprint 03C aprovada: usuario hospital-only autenticado chegou a `/painel` sem redirecionamento para `/acesso-negado` e sem tela de erro.
 - Resultado validado da Sprint 03C: 76 testes unitarios e 73 verificacoes pgTAP aprovados, incluindo novo teste pgTAP de regressao de acesso hospitalar; lint, typecheck, build, `db:lint` e `db:test` aprovados.
 - Vulnerabilidade moderada transitiva ja conhecida de PostCSS via Next.js permanece acompanhada em `KNOWN_ISSUES.md`; `npm audit fix --force` continua proibido por causar downgrade forcado do Next.js.
-- Sprint 03D permanece nao iniciada.
+- Sprint 03D1 concluida como checkpoint independente: inventario server-side de organizations e hospitals autorizados em `src/lib/auth/context.ts`, com o RLS da Sprint 03A como filtro definitivo e Opcao A sem migration.
+- Sprint 03D1 nao criou UI, seletor, persistencia de contexto, papeis ativos, migration, RLS, grant, papel ou permissao; usa apenas o cliente Supabase server-side autenticado, sem service role.
+- O inventario retorna `{ status: "success", inventory }` ou `{ status: "error" }`, sem dados parciais em erro; usuario hospital-only pode ter `organizations` vazio e `hospitals` preenchido, e `hospitalCount` deriva de `hospitals.length`.
+- Resultado validado da Sprint 03D1: 84 testes unitarios e 83 verificacoes pgTAP aprovados; lint, typecheck, build, `db:lint` e `db:test` aprovados, incluindo novo teste pgTAP de inventario de contexto.
+- Sprint 03D2, 03D3, 03D4 e 03D5 permanecem nao iniciadas.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 
