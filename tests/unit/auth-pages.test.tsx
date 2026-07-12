@@ -72,6 +72,9 @@ describe("paginas de autenticacao e painel", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/bem-vindo, Dra\. Ana/i)).toBeInTheDocument();
     expect(screen.getByText(/nao cria contexto ativo/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /selecionar hospital/i }),
+    ).toHaveAttribute("href", "/painel/selecionar-contexto");
     expect(screen.getByRole("button", { name: /sair/i })).toBeInTheDocument();
   });
 });

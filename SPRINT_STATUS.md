@@ -106,7 +106,14 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
 - Definidos quatro estados discriminados `active`, `absent`, `invalid` e `error`: erro tecnico nao apaga automaticamente o contexto, contexto invalido nao e tratado como erro tecnico, e nunca ha contexto parcial. O `logoutAction` limpa o cookie sempre, antes de qualquer redirect ou erro do `signOut`.
 - Confirmado sob RLS que papel hospitalar revogado com vinculo ativo e sem papel organizacional retorna 0 linhas, sem exigir correcao em TypeScript, migration ou RLS.
 - Resultado validado da Sprint 03D3: 117 testes unitarios e 94 verificacoes pgTAP aprovados; lint, typecheck, build, `db:lint` e `db:test` aprovados. Nenhuma migration criada e nenhuma ampliacao de RLS, grants, roles ou permissions; nenhuma UI ou seletor criado.
-- Sprint 03D2, 03D4 e 03D5 permanecem nao iniciadas.
+- Sprint 03D2 concluida como checkpoint independente: rota protegida `/painel/selecionar-contexto` (Server Component `force-dynamic`) com link de entrada "Selecionar hospital" no painel, seletor visual de contexto e Server Action co-localizada.
+- O seletor usa Client Component com `useActionState` e radiogroup, sem selecao automatica mesmo com um unico hospital, exigindo confirmacao explicita; suporta usuario hospital-only com `organizations` vazio sem inventar nome de organizacao.
+- A pagina consome `getAuthorizedContextInventory()` sob RLS e renderiza estados distintos de selecao, inventario vazio e falha tecnica; a Server Action valida `organizationId:hospitalId` com Zod, revalida por `validateActiveContext`, grava o cookie apenas quando `active` e redireciona fixo para `/painel`, ignorando `next` do navegador.
+- Sprint 03D2 nao criou dashboard contextual nem exibe o hospital ativo no painel; isso fica para a Sprint 03D4, que tambem revisara o texto antigo do painel sobre ainda nao existir contexto ativo.
+- Nenhuma migration, RLS, grant, role ou permission foi alterada; nenhum service role, `localStorage` ou `sessionStorage`; nenhuma autorizacao depende do inventario renderizado.
+- Validacao manual end-to-end da Sprint 03D2 aprovada com fixture ficticio efemero (removido ao final): login real, rota protegida, dois hospitais autorizados visiveis, hospital de outro tenant oculto, hospital-only funcionando, selecao repetida entre dois hospitais, logout e novo login e troca de contexto aprovados.
+- Resultado validado da Sprint 03D2: 157 testes unitarios e 94 verificacoes pgTAP aprovados; lint, typecheck, build, `db:lint` e `db:test` aprovados.
+- Sprint 03D4 e 03D5 permanecem nao iniciadas.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 

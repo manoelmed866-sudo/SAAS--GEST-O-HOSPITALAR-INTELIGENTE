@@ -12,7 +12,7 @@ Sprint 03B: Concluida tecnicamente e versionada.
 
 Sprint 03C: Concluida e validada localmente.
 
-Sprint 03D: Em execucao. Sprint 03D1 e Sprint 03D3 concluidas como checkpoints; Sprint 03D2, 03D4 e 03D5 nao iniciadas.
+Sprint 03D: Em execucao. Sprint 03D1, Sprint 03D3 e Sprint 03D2 concluidas como checkpoints; Sprint 03D4 e 03D5 nao iniciadas.
 
 Este documento registra o planejamento documental da Sprint 03, as implementacoes controladas das Sprints 03A, 03B e 03C e seus limites. A Sprint 03C criou fluxo visual de login/logout, protecao de rota e acesso negado, sem implementar Sprint 03D, APIs de negocio, novas tabelas, migracoes, usuarios, dados clinicos, dados reais ou Supabase remoto.
 
@@ -1263,6 +1263,64 @@ Resultado tecnico confirmado da Sprint 03D3:
 - `git diff --check` sem erros de espaco em branco ou conflito.
 - Confirmado que nenhuma migration, RLS, grant, papel ou permissao foi criada ou alterada e que nenhuma UI ou seletor foi criado.
 - Confirmado que `.env.local` permanece ignorado e que nenhuma chave, token, JWT, service role, senha ou URL com credencial foi versionada; as fixtures pgTAP sao ficticias e finalizam com `rollback`.
+
+### Implementacao e validacao da Sprint 03D2 - Seletor visual de contexto institucional
+
+Estado: Sprint 03D2 concluida como checkpoint independente. Sprint 03D4 e 03D5 permanecem nao iniciadas.
+
+Escopo entregue:
+
+- Rota protegida `/painel/selecionar-contexto` (Server Component `force-dynamic`) dentro da area do painel, protegida pelo Proxy existente e com o cookie de contexto no `path` `/painel`.
+- Ponto de entrada por link simples "Selecionar hospital" no painel, sem alterar o comportamento do painel e sem exibir o hospital ativo, que fica para a Sprint 03D4.
+- Seletor visual sem selecao automatica, mesmo com um unico hospital, exigindo confirmacao explicita, e suporte ao caso hospital-only.
+
+Arquivos criados:
+
+- `src/app/(protected)/painel/selecionar-contexto/actions.ts`;
+- `src/app/(protected)/painel/selecionar-contexto/context-selector-form.tsx`;
+- `src/app/(protected)/painel/selecionar-contexto/page.tsx`;
+- `tests/unit/context-select-action.test.ts`;
+- `tests/unit/context-selector-form.test.tsx`;
+- `tests/unit/context-selector-page.test.tsx`;
+- `tests/unit/sprint-03d2-static-security.test.ts`.
+
+Arquivos alterados:
+
+- `src/app/(protected)/painel/page.tsx` (link de entrada);
+- `src/app/globals.css` (CSS minimo do radiogroup);
+- `tests/unit/auth-pages.test.tsx` (assercao do link).
+
+Server Action e formulario:
+
+- `selectActiveContextAction` recebe um unico campo `contextSelection` no formato `organizationId:hospitalId`, valida com Zod strict (duas partes, UUIDs validos), revalida por `validateActiveContext` sob RLS, grava o cookie apenas quando o resultado e `active` usando os IDs vindos do banco e faz `redirect("/painel")` fixo, ignorando qualquer `next` do navegador. Estados `invalid` e `error` sao separados, com mensagens genericas e sem expor UUIDs ou detalhes internos do Supabase.
+- O Client Component usa `useActionState` e um radiogroup com `name="contextSelection"` e valor `organizationId:hospitalId`; nenhum radio inicia marcado; o nome da organizacao so aparece quando presente no inventario, sem inventar nome para hospital-only e sem exibir UUID como texto.
+
+Pagina e estados:
+
+- Ordem obrigatoria `requirePortalAccess()` e depois `getAuthorizedContextInventory()`.
+- Estados distintos: selecao com o formulario; inventario vazio ("Nenhum hospital disponivel"); falha tecnica ("Nao foi possivel carregar seus hospitais"). Inventario vazio e distinto de erro tecnico.
+
+Seguranca:
+
+- Nenhuma migration, RLS, grant, role ou permission foi criada ou alterada.
+- Sem service role, `localStorage` ou `sessionStorage`; nenhuma autorizacao depende do inventario renderizado, sempre revalidado no servidor.
+
+Validacao real aprovada:
+
+- Validacao manual end-to-end em ambiente local com fixture ficticio efemero, removido integralmente ao final.
+- Login real aprovado; rota protegida aprovada; dois hospitais autorizados visiveis; hospital de outro tenant oculto; caso hospital-only funcionando; selecao repetida entre dois hospitais aprovada; logout e novo login aprovados; troca de contexto aprovada.
+
+Resultado tecnico confirmado da Sprint 03D2:
+
+- Lint aprovado.
+- Typecheck aprovado.
+- 157 testes unitarios aprovados.
+- Build aprovado.
+- `db:lint` aprovado.
+- 94 verificacoes pgTAP aprovadas.
+- `git diff --check` sem erros de espaco em branco ou conflito.
+- Confirmado que nenhuma migration, RLS, grant, papel ou permissao foi alterada e que Proxy e painel (exceto o link de entrada) permaneceram intactos.
+- Confirmado que `.env.local` permanece ignorado e que nenhuma chave, token, JWT, service role, senha ou UUID foi versionado; o fixture de validacao foi ficticio, local e removido ao final.
 
 ## Decisoes aprovadas incorporadas
 

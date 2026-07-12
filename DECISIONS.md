@@ -391,3 +391,19 @@ O resultado sera discriminado em quatro estados que nunca se colapsam e nunca de
 Um teste pgTAP de contexto ativo confirmou sob RLS que papel hospitalar revogado com vinculo ativo e sem papel organizacional retorna 0 linhas, porque `current_user_has_hospital_permission` exige papel ativo e nao revogado. Nenhuma correcao em TypeScript, migration ou RLS foi necessaria.
 
 Motivo: manter a separacao entre autenticacao, autorizacao e contexto ativo, garantindo que nenhum contexto valha apenas por estar em cookie e que a revalidacao no banco bloqueie vinculo revogado, hospital ou organizacao suspensos e acesso cruzado, sem ampliar RLS, grants, roles ou permissions e sem criar UI, seletor ou migration nesta etapa.
+
+### DEC-051 - Seletor visual de contexto institucional na Sprint 03D2
+
+A selecao de contexto institucional tera uma rota protegida `/painel/selecionar-contexto`, dentro da area do painel, com ponto de entrada por link simples "Selecionar hospital" no painel. A rota e um Server Component `force-dynamic` protegido pelo Proxy existente e recebe o cookie no `path` `/painel`.
+
+O formulario sera um Client Component com `useActionState`, apresentando os hospitais autorizados em um radiogroup. Nao havera selecao automatica, mesmo com um unico hospital: a confirmacao explicita por botao e obrigatoria. O caso hospital-only e suportado: com `organizations` vazio o hospital continua selecionavel, sem inventar nome de organizacao e sem exibir nenhum UUID como texto.
+
+A pagina consome `getAuthorizedContextInventory()` sob RLS, na ordem `requirePortalAccess()` e depois inventario, e renderiza estados distintos: selecao, inventario vazio e falha tecnica, tratando inventario vazio como diferente de erro tecnico.
+
+A Server Action `selectActiveContextAction` sera co-localizada na rota, validara `organizationId:hospitalId` com Zod e revalidara obrigatoriamente por `validateActiveContext`. O cookie so sera gravado quando o resultado for `active`, usando os IDs vindos do banco, seguido de `redirect("/painel")` fixo. Os estados `invalid` e `error` sao separados, com mensagens genericas, e nenhum destino de redirect vindo do navegador e aceito.
+
+Nenhuma migration, RLS, grant, role ou permission foi criada ou alterada. Nao ha dashboard contextual nesta sprint: a exibicao do hospital ativo no painel e a revisao do texto antigo do painel sobre ainda nao existir contexto ativo ficam para a Sprint 03D4.
+
+Validacao real registrada: login real aprovado; rota protegida aprovada; dois hospitais autorizados visiveis; hospital de outro tenant oculto; caso hospital-only funcionando; selecao repetida entre dois hospitais aprovada; logout e novo login aprovados; troca de contexto aprovada. A validacao usou um fixture ficticio efemero em ambiente local, removido integralmente ao final.
+
+Motivo: dar ao usuario autenticado uma forma segura de escolher o hospital de trabalho, mantendo a autorizacao no RLS e no servidor, sem confiar no inventario renderizado, sem ampliar permissoes e sem antecipar o dashboard contextual da Sprint 03D4.

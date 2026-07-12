@@ -6,6 +6,19 @@ Todas as mudancas relevantes do projeto devem ser registradas aqui.
 
 ## 2026-07-12
 
+### Checkpoint - Sprint 03D2 - Seletor visual de contexto institucional
+
+- Criada a rota protegida `/painel/selecionar-contexto` (Server Component `force-dynamic`), dentro da area do painel, protegida pelo Proxy existente e com o cookie de contexto no `path` `/painel`.
+- Adicionado ponto de entrada por link simples "Selecionar hospital" no painel, apontando para `/painel/selecionar-contexto`, sem alterar o comportamento do painel nem exibir o hospital ativo (isso fica para a Sprint 03D4).
+- Criado o Client Component `context-selector-form.tsx` com `useActionState`, exibindo os hospitais autorizados em um radiogroup com `name="contextSelection"` e valor `organizationId:hospitalId`; nenhuma selecao automatica, mesmo com um unico hospital, exigindo confirmacao explicita por botao.
+- Suporte a usuario hospital-only: o nome da organizacao so aparece quando presente no inventario; com `organizations` vazio o hospital continua selecionavel e nenhum nome ficticio e inventado; nenhum UUID e exibido como texto.
+- A pagina consome `getAuthorizedContextInventory()` sob RLS, na ordem `requirePortalAccess()` e depois inventario, e renderiza estados distintos: selecao, inventario vazio ("Nenhum hospital disponivel") e falha tecnica ("Nao foi possivel carregar seus hospitais"), tratando inventario vazio como diferente de erro tecnico.
+- Criada a Server Action co-localizada `selectActiveContextAction`, que valida `organizationId:hospitalId` com Zod strict, revalida obrigatoriamente por `validateActiveContext` sob RLS, grava o cookie somente quando o resultado e `active` (usando os IDs vindos do banco) e faz `redirect("/painel")` fixo, ignorando qualquer `next` do navegador. Estados `invalid` e `error` sao separados, com mensagens genericas e sem expor UUIDs ou detalhes internos do Supabase.
+- Ajustes de acessibilidade e visual: `main`/`section`, um unico `h1` por estado, classes existentes reutilizadas e CSS minimo novo para o radiogroup (radio nativo visivel, label clicavel, foco perceptivel, checked perceptivel, disabled perceptivel e layout em coluna para telas estreitas).
+- Nenhuma migration, RLS, grant, role ou permission foi criada ou alterada; nenhum service role, `localStorage` ou `sessionStorage`; nenhuma autorizacao depende do inventario renderizado, sempre revalidado no servidor.
+- Validacao manual end-to-end aprovada em ambiente local com fixture ficticio efemero (removido ao final): login real, rota protegida, dois hospitais autorizados visiveis, hospital de outro tenant oculto, caso hospital-only funcionando, selecao repetida entre dois hospitais, logout e novo login, e troca de contexto aprovada.
+- Aprovados lint, typecheck, 157 testes unitarios, build, `db:lint` e 94 verificacoes pgTAP.
+
 ### Checkpoint - Sprint 03D3 - Contexto institucional ativo seguro
 
 - Criado o modulo `src/lib/auth/context-cookie.ts`, responsavel exclusivamente pelo ciclo de vida do cookie `ghi_active_context`, sem importar Supabase, sem consultar banco, sem `localStorage` ou `sessionStorage` e sem registrar o conteudo do cookie.

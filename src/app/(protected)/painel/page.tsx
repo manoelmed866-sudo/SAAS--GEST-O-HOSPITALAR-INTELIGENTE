@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { logoutAction } from "@/app/(auth)/actions";
 import { requirePortalAccess } from "@/lib/auth/access";
 
@@ -22,6 +23,12 @@ export default async function PanelPage() {
           </p>
 
           <div className="state-actions">
+            <Link
+              className="button button--secondary"
+              href="/painel/selecionar-contexto"
+            >
+              Selecionar hospital
+            </Link>
             <form action={logoutAction}>
               <button className="button" type="submit">
                 Sair

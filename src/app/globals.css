@@ -383,6 +383,80 @@ h1 {
   color: var(--color-text);
 }
 
+.context-selector-form {
+  margin-top: 1.5rem;
+  text-align: left;
+}
+
+.context-selector-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.context-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  padding: 0.85rem 1rem;
+}
+
+.context-option:focus-within {
+  border-color: var(--color-accent);
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.context-option:has(input[type="radio"]:checked) {
+  border-color: var(--color-accent);
+  background: var(--color-surface-muted);
+}
+
+.context-option input[type="radio"] {
+  flex: none;
+  margin-top: 0.2rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--color-accent);
+}
+
+.context-option label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  cursor: pointer;
+}
+
+.context-option__hospital {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.context-option__organization {
+  font-size: 0.9rem;
+  color: var(--color-muted);
+}
+
+.context-option__code {
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+}
+
+.context-selector-options:disabled .context-option {
+  opacity: 0.6;
+}
+
+.context-selector-options:disabled .context-option label {
+  cursor: not-allowed;
+}
+
 .loading-indicator {
   display: inline-flex;
   align-items: center;
