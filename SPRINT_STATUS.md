@@ -9,10 +9,10 @@ As sprints constroem progressivamente a Visao Funcional Completa. A Primeira Ver
 | Etapa | Nome | Status |
 | --- | --- | --- |
 | Sprint 00 | Documentacao permanente | Concluída |
-| Sprint 01 | Fundacao tecnica do projeto | Concluída |
-| Sprint 02 | Design system e estrutura visual | Pendente |
-| Sprint 03 | Autenticacao e contexto institucional | Pendente |
-| Sprint 04 | Administracao e governanca inicial | Pendente |
+| Sprint 01 | Fundacao visual e tecnica inicial | Concluída |
+| Sprint 02 | Fundacao local do banco e migracoes | Concluída |
+| Sprint 03 | Autenticacao, contexto institucional e extensao visual autenticada | Não iniciada |
+| Sprint 04 | Administracao, governanca e design system autenticado inicial | Pendente |
 | Sprint 05 | Cadastro institucional hospitalar | Pendente |
 | Sprint 06 | Rede de referencia e comunicacao institucional | Pendente |
 | Sprint 07 | Episodios assistenciais | Pendente |
@@ -52,7 +52,25 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
 - Todas as validacoes funcionais da fundacao tecnica passaram: lint, typecheck, testes, build, check, pagina inicial HTTP 200 e rota inexistente HTTP 404.
 - A Sprint 01 foi concluida com 6 arquivos de teste e 14 testes aprovados.
 - Ha ressalva de seguranca transitiva documentada em `KNOWN_ISSUES.md`: CVE-2026-41305 / GHSA-qx2v-qp2m-jg93 em PostCSS abaixo de 8.5.10, via dependencia privada/transitiva do Next.js 16.2.10.
-- A Sprint 02 nao foi iniciada.
+- A Sprint 02 foi realinhada posteriormente para fundacao local do banco e migracoes.
+
+## Observacao sobre Sprint 02
+
+- A Sprint 02 foi concluida apos validacao tecnica.
+- A Sprint 02 estabeleceu a fundacao local do banco PostgreSQL por meio do Supabase local e migracoes reproduziveis.
+- Docker Desktop 29.6.1 e Docker Compose 5.2.0 foram utilizados na validacao local.
+- Supabase CLI 2.109.1 foi instalada como dependencia de desenvolvimento local em versao exata.
+- Start e status local foram aprovados.
+- A migracao baseline foi aplicada.
+- O reset local foi aprovado.
+- O lint SQL foi aprovado.
+- 1 arquivo SQL e 3 testes pgTAP foram aprovados.
+- `src/types/database.types.ts` foi gerado pela Supabase CLI.
+- Lint, typecheck, 14 testes da aplicacao, build e check foram aprovados.
+- Os servicos locais foram encerrados apos a validacao.
+- Nenhuma tabela de dominio foi criada e nenhum dado real foi utilizado.
+- O design system permanece como trilha transversal do produto, sem ser removido do planejamento.
+- A Sprint 03 permanece nao iniciada.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 

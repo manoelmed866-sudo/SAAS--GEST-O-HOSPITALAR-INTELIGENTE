@@ -1,0 +1,5 @@
+-- Sprint 02 - Seed local vazio
+--
+-- Nenhum dado real deve ser utilizado no desenvolvimento, testes ou demonstracoes.
+-- Nenhum dado ficticio e necessario para a baseline local desta sprint.
+-- Seeds futuros deverao ser explicitamente ficticios, autorizados e documentados.

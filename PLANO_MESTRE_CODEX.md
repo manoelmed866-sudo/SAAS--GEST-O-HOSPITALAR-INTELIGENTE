@@ -4,7 +4,7 @@
 
 Este plano organiza a evolucao da Plataforma de Inteligencia Hospitalar da Sprint 00 ate a Sprint 22, seguida de preparacao para auditoria no Claude.
 
-Nenhuma sprint alem da Sprint 00 esta sendo executada neste momento.
+As sprints em andamento ou planejadas devem ser acompanhadas em `SPRINT_STATUS.md`.
 
 As 22 sprints constroem progressivamente a Visao Funcional Completa. A Primeira Versao Operacional surgira durante esse processo como recorte utilizavel, integrado e validavel, sem representar o limite funcional final do produto.
 
@@ -20,39 +20,51 @@ Dependencias: definicao inicial do produto.
 
 Criterios de avanco: documentacao validada por Manoel Neto.
 
-## Sprint 01 - Fundacao tecnica do projeto
+## Sprint 01 - Fundacao visual e tecnica inicial
 
-Objetivo: criar a base tecnica da aplicacao.
+Objetivo: criar a base tecnica da aplicacao e a fundacao visual inicial.
 
-Principais entregas: estrutura inicial do projeto, padroes de ambiente, scripts basicos e documentacao tecnica inicial.
+Principais entregas: estrutura inicial do projeto, padroes de ambiente, scripts basicos, layout institucional inicial, estados basicos de interface e documentacao tecnica inicial.
 
 Dependencias: Sprint 00 validada.
 
 Criterios de avanco: projeto inicia localmente e possui comandos basicos de qualidade.
 
-## Sprint 02 - Design system e estrutura visual
+## Sprint 02 - Fundacao local do banco e migracoes
 
-Objetivo: definir linguagem visual e componentes base.
+Objetivo: estabelecer PostgreSQL local por meio do Supabase CLI, criar infraestrutura reproduzivel de migracoes, permitir start, stop, status, reset, lint, testes e geracao de tipos, e preparar a fundacao para autenticacao e isolamento institucional da Sprint 03.
 
-Principais entregas: layout principal, navegacao, componentes reutilizaveis e padroes de estado.
+Principais entregas planejadas: Supabase local, configuracao versionada, baseline minima, migracoes SQL versionadas, seed vazio ou estritamente ficticio, testes SQL tecnicos, geracao de tipos TypeScript, scripts npm de banco e documentacao de instalacao e recuperacao.
+
+Limites: sem tabelas clinicas, sem pacientes, sem episodios, sem protocolos, sem exames, sem estoque, sem autenticacao, sem usuarios, sem hospitais ou organizacoes, sem RLS definitiva, sem projeto Supabase remoto e sem homologacao ou producao.
 
 Dependencias: Sprint 01.
 
-Criterios de avanco: interface base navegavel com componentes consistentes.
+Criterios de avanco: stack local inicia e encerra, PostgreSQL responde, migracoes aplicam, reset reconstroi o estado limpo, testes SQL passam, tipos sao gerados, scripts npm funcionam, nenhuma tabela clinica ou dado real existe, e lint, typecheck, testes, build e check da aplicacao continuam aprovados.
 
-## Sprint 03 - Autenticacao e contexto institucional
+## Diretriz transversal de design system
 
-Objetivo: estabelecer entrada segura e contexto de hospital.
+A fundacao visual comecou na Sprint 01, junto da fundacao tecnica inicial da aplicacao.
+
+O design system evoluira como trilha transversal do produto, com componentes realmente utilizados pelos modulos implementados. Nao serao criados componentes abstratos sem caso de uso concreto.
+
+A Sprint 03 estendera padroes para login e contexto institucional. A Sprint 04 consolidara navegacao autenticada, componentes administrativos, estados, formularios e padroes visuais iniciais. Cada sprint funcional ampliara o design system conforme necessidades reais de uso.
+
+Acessibilidade, responsividade, consistencia visual, estados de carregamento, erro, vazio e bloqueio sao requisitos transversais. A mudanca da Sprint 02 para banco local e migracoes nao remove a construcao visual planejada nem reduz a Visao Funcional Completa.
+
+## Sprint 03 - Autenticacao, contexto institucional e extensao visual autenticada
+
+Objetivo: estabelecer entrada segura, contexto de hospital e extensao dos padroes visuais para areas autenticadas iniciais.
 
 Principais entregas: autenticacao, sessao, contexto institucional, matriz de papeis, permissoes, areas de trabalho por login e regras iniciais de acesso.
 
-Dependencias: Sprint 01.
+Dependencias: Sprint 01 e Sprint 02.
 
 Criterios de avanco: usuario autenticado acessa somente contexto permitido e administrador nao recebe acesso clinico automatico.
 
-## Sprint 04 - Administracao e governanca inicial
+## Sprint 04 - Administracao, governanca e design system autenticado inicial
 
-Objetivo: criar base administrativa para usuarios, perfis e configuracoes.
+Objetivo: criar base administrativa para usuarios, perfis e configuracoes, consolidando navegacao autenticada, componentes administrativos, estados, formularios e padroes visuais iniciais.
 
 Principais entregas: estrutura de perfis, permissoes, configuracoes institucionais e registros administrativos.
 

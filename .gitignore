@@ -1,6 +1,7 @@
 # Dependencies
 node_modules/
 .npm-cache/
+.supabase-local-home/
 
 # Next.js
 .next/
@@ -20,6 +21,12 @@ pnpm-debug.log*
 # Local environment
 .env*
 !.env.example
+
+# Supabase local runtime
+supabase/.branches/
+supabase/.temp/
+supabase/.env
+supabase/.env.*
 
 # OS and editor
 .DS_Store

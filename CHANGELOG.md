@@ -6,6 +6,42 @@ Todas as mudancas relevantes do projeto devem ser registradas aqui.
 
 ## 2026-07-11
 
+### Encerramento - Sprint 02
+
+- Encerrada a Sprint 02 na branch `sprint/02-banco-local-migracoes`.
+- Criada a fundacao local do Supabase para desenvolvimento e testes.
+- Registrados migracao baseline, seed vazio, testes SQL e geracao de tipos TypeScript.
+- Adicionados scripts npm de banco para start, stop, status, migrate, reset, lint, test e types.
+- Confirmado que nenhum banco remoto foi vinculado.
+- Confirmado que nenhuma entidade clinica ou institucional foi criada.
+- Mantida documentada em `KNOWN_ISSUES.md` a vulnerabilidade transitiva moderada ja conhecida do PostCSS via Next.js 16.2.10.
+
+### Realinhamento - Sprint 02
+
+- Redefinida oficialmente a Sprint 02 como fundacao local do banco de dados e das migracoes.
+- Posicionado o banco local antes da autenticacao, contexto institucional, isolamento e permissoes da Sprint 03.
+- Preservado o design system como trilha transversal do produto, com evolucao por componentes realmente utilizados.
+- Registrado que nenhuma implementacao de banco, Supabase, Docker, migracao, tabela ou seed foi realizada nesta correcao documental.
+- Confirmado que nenhum escopo funcional foi removido da Visao Funcional Completa.
+
+### Sprint 02 - Preparacao local parcial
+
+- Instalada Supabase CLI 2.109.1 como dependencia de desenvolvimento local e versao exata.
+- Inicializada configuracao local versionavel em `supabase/config.toml`.
+- Criada migracao baseline apenas com comentarios SQL, sem tabelas de dominio.
+- Criado seed vazio e teste SQL preparatorio para a baseline.
+- Adicionados scripts npm de banco sem inclui-los no `check`.
+- Registrado que Docker ainda nao foi validado, nenhum container foi iniciado, nenhuma migracao foi aplicada e nenhum banco foi validado.
+
+### Sprint 02 - Refinamento tecnico final
+
+- Registrado ciclo local completo do banco com start, status, migracao, reset, lint SQL, testes SQL, geracao de tipos e stop.
+- Registrados 1 arquivo SQL e 3 testes pgTAP aprovados.
+- Gerado `src/types/database.types.ts` pela Supabase CLI a partir da baseline local.
+- Removida a dependencia redundante `vite-tsconfig-paths`, adotando resolucao nativa de caminhos do Vite.
+- Corrigido o teste de `global-error` para validar `html`, `body` e `main` por markup estatico, sem alterar a implementacao do Next.js.
+- Confirmada ausencia de tabelas de dominio, seed com dados, dados reais e vinculo remoto.
+
 ### Sprint 01 - Fundacao tecnica
 
 - Encerrada a Sprint 01 na branch `sprint/01-fundacao-local`.

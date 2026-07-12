@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderToStaticMarkup } from "react-dom/server";
 import ErrorPage from "@/app/error";
 import GlobalError from "@/app/global-error";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -36,14 +37,17 @@ describe("ErrorPage", () => {
   });
 
   it("global-error possui exatamente um landmark main", () => {
-    render(<GlobalError error={new Error("falha global")} reset={vi.fn()} />);
+    const markup = renderToStaticMarkup(
+      <GlobalError error={new Error("falha global")} reset={vi.fn()} />,
+    );
+    const document = new DOMParser().parseFromString(markup, "text/html");
 
-    expect(screen.getAllByRole("main")).toHaveLength(1);
+    expect(document.documentElement.lang).toBe("pt-BR");
+    expect(document.body).not.toBeNull();
+    expect(document.querySelectorAll("main")).toHaveLength(1);
     expect(
-      screen.getByRole("heading", {
-        name: /a aplicacao encontrou uma instabilidade/i,
-      }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/falha global/i)).not.toBeInTheDocument();
+      document.body.textContent,
+    ).toContain("A aplicacao encontrou uma instabilidade");
+    expect(document.body.textContent).not.toContain("falha global");
   });
 });

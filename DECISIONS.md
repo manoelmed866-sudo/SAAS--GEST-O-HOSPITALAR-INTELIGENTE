@@ -161,3 +161,15 @@ Motivo: preservar expansao arquitetural para modulos documentados e evitar reduc
 A Visao Funcional Completa nao exige substituir integralmente sistemas como ERP financeiro, contabilidade, folha de pagamento, faturamento completo, PACS, sistema laboratorial completo, sistemas governamentais ou todos os recursos de prontuarios comerciais.
 
 Motivo: diferenciar nucleo da plataforma, integracoes previstas e sistemas administrativos externos.
+
+### DEC-027 - Sprint 02 como fundacao local do banco
+
+A Sprint 02 foi redefinida como fundacao local do banco de dados e das migracoes.
+
+Motivo: autenticacao, contexto institucional, isolamento e permissoes dependem de banco local reproduzivel, migracoes versionadas, reset confiavel e tipos gerados antes da Sprint 03.
+
+O design system nao foi removido. Ele permanece como trilha transversal do produto: a fundacao visual iniciou na Sprint 01, sera estendida na Sprint 03 para login e contexto institucional, consolidada inicialmente na Sprint 04 para areas autenticadas e ampliada em cada sprint funcional conforme componentes reais forem necessarios.
+
+A Supabase CLI sera usada como dependencia de desenvolvimento local do projeto, com versao estavel e exata, sem faixa flutuante e sem beta, canary ou preview. Os comandos serao expostos por scripts npm e tambem poderao ser executados manualmente com `npm exec supabase --`, sem exigir instalacao global da CLI.
+
+O Supabase local da Sprint 02 nao sera vinculado a projeto remoto. Nao sera executado `supabase login`, `supabase link` nem acesso a projeto remoto. Docker Desktop ou runtime Docker compativel e pre-requisito externo. Nenhum dado real sera utilizado e chaves locais geradas nao deverao ser copiadas para arquivos versionados.

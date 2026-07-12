@@ -1,0 +1,16 @@
+-- Sprint 02 - Baseline local do banco de dados
+--
+-- Objetivo:
+-- Registrar uma baseline inicial tecnicamente valida para o ambiente local
+-- Supabase/PostgreSQL, sem antecipar entidades de dominio.
+--
+-- Convencoes:
+-- - Toda mudanca estrutural futura devera ser feita por migracao SQL versionada.
+-- - Dados reais, identificaveis ou institucionais nao podem ser usados.
+-- - Seeds futuros devem ser explicitamente ficticios e autorizados.
+-- - A criacao de schemas, extensoes, tabelas, funcoes, triggers, politicas RLS
+--   ou permissoes devera ser justificada pela sprint correspondente.
+--
+-- Esta baseline nao cria tabelas clinicas, institucionais, usuarios, pacientes,
+-- episodios, protocolos, exames, medicamentos, estoque, schemas proprios,
+-- extensoes, funcoes, triggers, politicas RLS ou permissoes publicas.
