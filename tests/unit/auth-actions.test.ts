@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
   getSession: vi.fn(),
   createClient: vi.fn(),
+  clearContextCookie: vi.fn(),
 }));
 
 export {};
@@ -22,6 +23,10 @@ vi.mock("next/cache", () => ({
 
 vi.mock("@/lib/supabase/server", () => ({
   createClient: mocks.createClient,
+}));
+
+vi.mock("@/lib/auth/context-cookie", () => ({
+  clearContextCookie: mocks.clearContextCookie,
 }));
 
 function makeFormData(values: Record<string, string>): FormData {
@@ -55,6 +60,7 @@ describe("actions de autenticacao", () => {
       data: { user: { id: "usuario-1" } },
       error: null,
     });
+    mocks.clearContextCookie.mockResolvedValue(undefined);
   });
 
   it("valida campos de login sem consultar Supabase", async () => {
@@ -119,17 +125,67 @@ describe("actions de autenticacao", () => {
 
     await expect(logoutAction()).rejects.toThrow("NEXT_REDIRECT:/login");
 
+    expect(mocks.clearContextCookie).toHaveBeenCalledTimes(1);
     expect(mocks.getUser).toHaveBeenCalledTimes(1);
     expect(mocks.signOut).toHaveBeenCalledWith({ scope: "local" });
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/", "layout");
   });
 
-  it("nao chama signOut quando nao existe usuario autenticado", async () => {
+  it("limpa o contexto e nao chama signOut quando nao existe usuario autenticado", async () => {
     mocks.getUser.mockResolvedValueOnce({ data: { user: null }, error: null });
     const { logoutAction } = await import("@/app/(auth)/actions");
 
     await expect(logoutAction()).rejects.toThrow("NEXT_REDIRECT:/login");
 
+    expect(mocks.clearContextCookie).toHaveBeenCalledTimes(1);
     expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
+  it("limpa o contexto e lanca mensagem generica quando o signOut falha", async () => {
+    mocks.signOut.mockResolvedValueOnce({
+      error: new Error("sessao supabase corrompida interna"),
+    });
+    const { logoutAction } = await import("@/app/(auth)/actions");
+
+    await expect(logoutAction()).rejects.toThrow(
+      "Nao foi possivel encerrar a sessao com seguranca.",
+    );
+
+    expect(mocks.clearContextCookie).toHaveBeenCalledTimes(1);
+    // Nao ocorre redirect final: o unico redirect possivel seria o de saida.
+    expect(mocks.redirect).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("nao expoe a mensagem interna do Supabase ao falhar o signOut", async () => {
+    mocks.signOut.mockResolvedValueOnce({
+      error: new Error("sessao supabase corrompida interna"),
+    });
+    const { logoutAction } = await import("@/app/(auth)/actions");
+
+    await expect(logoutAction()).rejects.not.toThrow(
+      /sessao supabase corrompida interna/,
+    );
+  });
+
+  it("limpa o contexto antes do signOut", async () => {
+    const { logoutAction } = await import("@/app/(auth)/actions");
+
+    await expect(logoutAction()).rejects.toThrow("NEXT_REDIRECT:/login");
+
+    const clearOrder = mocks.clearContextCookie.mock.invocationCallOrder[0];
+    const signOutOrder = mocks.signOut.mock.invocationCallOrder[0];
+    expect(clearOrder).toBeLessThan(signOutOrder);
+  });
+
+  it("limpa o contexto antes do redirect quando nao ha usuario", async () => {
+    mocks.getUser.mockResolvedValueOnce({ data: { user: null }, error: null });
+    const { logoutAction } = await import("@/app/(auth)/actions");
+
+    await expect(logoutAction()).rejects.toThrow("NEXT_REDIRECT:/login");
+
+    const clearOrder = mocks.clearContextCookie.mock.invocationCallOrder[0];
+    const redirectOrder = mocks.redirect.mock.invocationCallOrder[0];
+    expect(clearOrder).toBeLessThan(redirectOrder);
   });
 });

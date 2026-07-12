@@ -377,3 +377,17 @@ O inventario nao resolve papeis ativos, que ficam reservados para a revalidacao 
 A funcao retorna um resultado discriminado `success` ou `error`. Em erro de qualquer consulta, retorna `error` sem dados parciais e sem converter erro em inventario vazio, preservando o comportamento fail-closed. Usa apenas o cliente Supabase server-side autenticado, sem service role.
 
 Motivo: manter a separacao entre autenticacao, autorizacao e contexto ativo, tratando o RLS como fonte unica de verdade da autorizacao, sem ampliar grants ou politicas sem necessidade comprovada e sem exibir instituicoes nao autorizadas. Exibir o nome da organization para usuario hospital-only, que exigiria nova politica de leitura, fica adiado para uma decisao futura especifica caso a necessidade se confirme.
+
+### DEC-050 - Contexto institucional ativo como cookie ponteiro revalidado sob RLS na Sprint 03D3
+
+O contexto institucional ativo da Sprint 03D3 sera persistido no cookie `ghi_active_context`, com payload minimo `organizationId`, `hospitalId` e `v: 1`, sem papel, permissao, nome institucional ou dado clinico. O cookie sera `httpOnly`, `SameSite=Lax`, `Secure` apenas em producao, com `path` `/painel` e `maxAge` de 12 horas (`60 * 60 * 12`), alinhado ao plantao de urgencia e emergencia. A versao `v` sera acrescentada internamente pelo modulo, nunca pelo chamador.
+
+O cookie sera apenas um ponteiro da selecao atual e nunca a fonte de autorizacao. O parsing usara Zod strict, aceitando somente UUIDs validos e `v` igual a 1, rejeitando JSON invalido e campos extras; a escrita tambem validara a selecao antes de gravar e lancara erro generico, sem expor IDs ou conteudo, quando a entrada for invalida. O conteudo do cookie, UUIDs, tokens, sessao e erros sensiveis nunca serao registrados em log.
+
+Todo acesso que exija contexto ativo revalidara a selecao no servidor sob RLS, consultando `hospitals` com filtros de `id`, `organization_id` e `status = 'active'` via `maybeSingle()`, usando somente o cliente Supabase server-side autenticado, sem service role. A leitura de `hospitals` ja exige, de forma transitiva pelo RLS da Sprint 03A, organization ativa, hospital ativo, vinculo e papel ativos e acesso real; por isso a validacao confia no RLS como barreira definitiva e nao reconstroi joins de autorizacao na aplicacao.
+
+O resultado sera discriminado em quatro estados que nunca se colapsam e nunca devolvem contexto parcial: `active`, `absent`, `invalid` e `error`. Erro tecnico permanece `error` e nao apaga automaticamente o contexto; contexto ausente e distinto de contexto invalido; contexto invalido nao e tratado como erro tecnico. O `logoutAction` limpa o cookie sempre, no inicio da acao, antes de qualquer redirect e antes de qualquer erro do `signOut`, mesmo sem usuario autenticado.
+
+Um teste pgTAP de contexto ativo confirmou sob RLS que papel hospitalar revogado com vinculo ativo e sem papel organizacional retorna 0 linhas, porque `current_user_has_hospital_permission` exige papel ativo e nao revogado. Nenhuma correcao em TypeScript, migration ou RLS foi necessaria.
+
+Motivo: manter a separacao entre autenticacao, autorizacao e contexto ativo, garantindo que nenhum contexto valha apenas por estar em cookie e que a revalidacao no banco bloqueie vinculo revogado, hospital ou organizacao suspensos e acesso cruzado, sem ampliar RLS, grants, roles ou permissions e sem criar UI, seletor ou migration nesta etapa.

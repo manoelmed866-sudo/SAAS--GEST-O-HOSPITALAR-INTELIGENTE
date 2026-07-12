@@ -1,3 +1,7 @@
+import {
+  type ActiveContextSelection,
+  readContextCookie,
+} from "@/lib/auth/context-cookie";
 import { createClient } from "@/lib/supabase/server";
 
 // Sprint 03D1 - Inventario de acessos
@@ -106,4 +110,79 @@ export async function getAuthorizedContextInventory(): Promise<AuthorizedContext
       hospitalCount: hospitals.length,
     },
   };
+}
+
+// Sprint 03D3 - Contexto institucional ativo (Etapa 2)
+//
+// Responsabilidade:
+// Revalidar, no servidor e sob RLS, o contexto ativo apontado pelo cookie. O
+// cookie e apenas um ponteiro (organization + hospital selecionados); a verdade
+// vem sempre do banco. A leitura de hospitals sob o cliente autenticado ja
+// exige, via RLS da Sprint 03A, organization ativa, hospital ativo, vinculo e
+// papel ativos e acesso real do usuario. Por isso confiamos no RLS como
+// barreira definitiva e nao reconstruimos joins de autorizacao aqui.
+//
+// Fail-closed: distinguimos ausente, invalido, valido e erro tecnico sem nunca
+// colapsar um no outro e sem devolver contexto parcial. Nenhum UUID, cookie,
+// token, sessao ou erro sensivel e registrado.
+
+export type ActiveContext = {
+  organizationId: string;
+  hospitalId: string;
+};
+
+export type ActiveContextResult =
+  | {
+      status: "active";
+      context: ActiveContext;
+    }
+  | { status: "absent" }
+  | { status: "invalid" }
+  | { status: "error" };
+
+export async function validateActiveContext(
+  selection: ActiveContextSelection,
+): Promise<ActiveContextResult> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("hospitals")
+    .select("id, organization_id")
+    .eq("id", selection.hospitalId)
+    .eq("organization_id", selection.organizationId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (error) {
+    return { status: "error" };
+  }
+
+  if (!data) {
+    return { status: "invalid" };
+  }
+
+  return {
+    status: "active",
+    context: {
+      organizationId: data.organization_id,
+      hospitalId: data.id,
+    },
+  };
+}
+
+export async function resolveActiveContext(): Promise<ActiveContextResult> {
+  const cookieResult = await readContextCookie();
+
+  if (cookieResult.status === "absent") {
+    return { status: "absent" };
+  }
+
+  if (cookieResult.status === "malformed") {
+    return { status: "invalid" };
+  }
+
+  return validateActiveContext({
+    organizationId: cookieResult.payload.organizationId,
+    hospitalId: cookieResult.payload.hospitalId,
+  });
 }

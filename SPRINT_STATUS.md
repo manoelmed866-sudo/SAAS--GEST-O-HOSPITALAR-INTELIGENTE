@@ -101,7 +101,12 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
 - Sprint 03D1 nao criou UI, seletor, persistencia de contexto, papeis ativos, migration, RLS, grant, papel ou permissao; usa apenas o cliente Supabase server-side autenticado, sem service role.
 - O inventario retorna `{ status: "success", inventory }` ou `{ status: "error" }`, sem dados parciais em erro; usuario hospital-only pode ter `organizations` vazio e `hospitals` preenchido, e `hospitalCount` deriva de `hospitals.length`.
 - Resultado validado da Sprint 03D1: 84 testes unitarios e 83 verificacoes pgTAP aprovados; lint, typecheck, build, `db:lint` e `db:test` aprovados, incluindo novo teste pgTAP de inventario de contexto.
-- Sprint 03D2, 03D3, 03D4 e 03D5 permanecem nao iniciadas.
+- Sprint 03D3 concluida como checkpoint independente: mecanismo seguro de contexto institucional ativo baseado no cookie `ghi_active_context`, com payload minimo `organizationId`, `hospitalId` e `v: 1`, `httpOnly`, `SameSite=Lax`, `Secure` em producao, `path` `/painel` e duracao de 12 horas.
+- O cookie e apenas um ponteiro e nunca a fonte de autorizacao: `validateActiveContext` e `resolveActiveContext` revalidam o contexto no servidor sob RLS, consultando `hospitals` com filtros de `id`, `organization_id` e `status = 'active'`, sem service role.
+- Definidos quatro estados discriminados `active`, `absent`, `invalid` e `error`: erro tecnico nao apaga automaticamente o contexto, contexto invalido nao e tratado como erro tecnico, e nunca ha contexto parcial. O `logoutAction` limpa o cookie sempre, antes de qualquer redirect ou erro do `signOut`.
+- Confirmado sob RLS que papel hospitalar revogado com vinculo ativo e sem papel organizacional retorna 0 linhas, sem exigir correcao em TypeScript, migration ou RLS.
+- Resultado validado da Sprint 03D3: 117 testes unitarios e 94 verificacoes pgTAP aprovados; lint, typecheck, build, `db:lint` e `db:test` aprovados. Nenhuma migration criada e nenhuma ampliacao de RLS, grants, roles ou permissions; nenhuma UI ou seletor criado.
+- Sprint 03D2, 03D4 e 03D5 permanecem nao iniciadas.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 

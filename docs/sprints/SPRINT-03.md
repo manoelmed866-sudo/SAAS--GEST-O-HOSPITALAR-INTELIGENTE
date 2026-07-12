@@ -12,7 +12,7 @@ Sprint 03B: Concluida tecnicamente e versionada.
 
 Sprint 03C: Concluida e validada localmente.
 
-Sprint 03D: Em execucao. Sprint 03D1 concluida como checkpoint; Sprint 03D2, 03D3, 03D4 e 03D5 nao iniciadas.
+Sprint 03D: Em execucao. Sprint 03D1 e Sprint 03D3 concluidas como checkpoints; Sprint 03D2, 03D4 e 03D5 nao iniciadas.
 
 Este documento registra o planejamento documental da Sprint 03, as implementacoes controladas das Sprints 03A, 03B e 03C e seus limites. A Sprint 03C criou fluxo visual de login/logout, protecao de rota e acesso negado, sem implementar Sprint 03D, APIs de negocio, novas tabelas, migracoes, usuarios, dados clinicos, dados reais ou Supabase remoto.
 
@@ -1206,6 +1206,63 @@ Resultado tecnico confirmado da Sprint 03D1:
 - `git diff --check` sem erros de espaco em branco ou conflito.
 - Confirmado que nenhuma migration, RLS, grant, papel ou permissao foi alterada.
 - Confirmado que `.env.local` permanece ignorado e que nenhuma chave, token, JWT, service role, senha ou URL com credencial foi versionada, incluindo qualquer saida do `db:start`.
+
+### Implementacao e validacao da Sprint 03D3 - Contexto institucional ativo seguro
+
+Estado: Sprint 03D3 concluida como checkpoint independente. Sprint 03D2, 03D4 e 03D5 permanecem nao iniciadas.
+
+Escopo entregue:
+
+- Mecanismo seguro para persistir, ler, validar e limpar o contexto institucional ativo do usuario autenticado, sem UI, sem seletor, sem alterar o painel visual, sem nova migration e sem ampliar RLS, grants, roles ou permissions.
+- O contexto representa apenas `organizationId`, `hospitalId` e a versao do formato; nenhum papel, permissao, nome institucional ou dado clinico.
+
+Cookie oficial:
+
+- Nome estavel e documentado: `ghi_active_context`.
+- Payload minimo `{"organizationId": "<uuid>", "hospitalId": "<uuid>", "v": 1}`, serializado como JSON. A versao `v` e acrescentada internamente pelo modulo, nunca pelo chamador.
+- Atributos: `httpOnly`, `SameSite=Lax`, `Secure` apenas em producao (`NODE_ENV === "production"`), `path` `/painel` e `maxAge` de 12 horas (`60 * 60 * 12`), aderente ao plantao de urgencia e emergencia.
+- Sem `localStorage`, sem `sessionStorage`, sem banco remoto e sem service role. O conteudo do cookie nunca e registrado em log.
+- Limpeza por sobrescrita com `maxAge` 0 no mesmo nome e `path`, sem `cookies().delete`.
+
+Arquitetura em camadas:
+
+- `src/lib/auth/context-cookie.ts`: responsabilidade exclusiva do ciclo de vida do cookie (serializacao, parsing, versao, limpeza). Nao importa Supabase e nao consulta banco. Parsing e escrita usam Zod strict, aceitando somente UUIDs validos e `v` igual a 1, rejeitando JSON invalido e campos extras; escrita com selecao invalida lanca erro generico, sem expor IDs, e nao grava o cookie.
+- `src/lib/auth/context.ts`: mantido o inventario da Sprint 03D1 e adicionadas `validateActiveContext` e `resolveActiveContext`. A validacao usa apenas o cliente Supabase server-side autenticado, consulta `hospitals` com `select("id, organization_id")` e filtros `id`, `organization_id` e `status = 'active'` via `maybeSingle()`, e confia no RLS como barreira definitiva. O retorno `active` usa os IDs vindos da linha do banco.
+- Separacao preservada: parsing de cookie nao se mistura com consultas Supabase, e o cookie nunca e fonte de verdade.
+
+Estados discriminados e fail-closed:
+
+- `active`: cookie presente e revalidado no banco.
+- `absent`: sem cookie; `resolveActiveContext` retorna `absent` sem consultar o banco.
+- `invalid`: cookie malformado ou revalidacao sem linha (adulterado, revogado, suspenso ou de outro tenant); cookie malformado retorna `invalid` sem consultar o banco.
+- `error`: falha tecnica de consulta; nunca convertida em `absent` ou `invalid` e nao apaga automaticamente o contexto.
+- Nunca ha contexto parcial; os quatro estados nunca se colapsam.
+
+Integracao com logout:
+
+- `logoutAction` chama `clearContextCookie` no inicio da acao, antes de qualquer redirect e antes de qualquer erro do `signOut`, mesmo sem usuario autenticado, preservando `signOut({ scope: "local" })`, a mensagem generica de erro, `revalidatePath` e o redirect final. Nenhum cookie, UUID, token, sessao ou erro sensivel e registrado.
+
+Testes adicionados:
+
+- `tests/unit/auth-context-cookie.test.ts`: cobre ausencia, payload valido, JSON invalido, UUID invalido, versao diferente de 1, campo extra, escrita acrescentando `v`, `maxAge` de 12 horas, `httpOnly`, `SameSite`, `Secure` apenas em producao, `path` `/painel`, limpeza com `maxAge` 0, validacao de UUID na escrita com erro generico e confirmacao estatica de que o codigo nao importa Supabase nem usa storage do navegador.
+- `tests/unit/auth-context-validate.test.ts`: cobre a orquestracao e o formato discriminado de `validateActiveContext` e `resolveActiveContext`, incluindo uso dos IDs vindos do banco, `absent`/`malformed` sem tocar no banco e ausencia de `context` em estados nao-`active`. A suite nao valida RLS; o RLS real e comprovado pelo teste pgTAP.
+- `supabase/tests/006-sprint-03d3-active-context.test.sql`: sob `authenticated`, transacional com `rollback`, reproduz exatamente a consulta de `validateActiveContext` em 10 cenarios com entidades separadas por cenario para evitar contaminacao: usuario hospitalar ativo, `organization_admin`, organizationId de outra organizacao, hospital suspenso, organizacao suspensa, vinculo hospitalar revogado, papel hospitalar revogado, usuario sem vinculo, hospital de outro tenant e confirmacao de execucao como `authenticated`.
+
+Ponto critico confirmado:
+
+- O cenario de papel hospitalar revogado com vinculo ativo e sem papel organizacional retornou 0 linhas. O RLS bloqueou a leitura de `hospitals` porque `current_user_has_hospital_permission` exige papel ativo e nao revogado; nenhuma correcao em TypeScript, migration ou RLS foi necessaria.
+
+Resultado tecnico confirmado da Sprint 03D3:
+
+- Lint aprovado.
+- Typecheck aprovado.
+- 117 testes unitarios aprovados.
+- Build aprovado.
+- `db:lint` aprovado.
+- 94 verificacoes pgTAP aprovadas.
+- `git diff --check` sem erros de espaco em branco ou conflito.
+- Confirmado que nenhuma migration, RLS, grant, papel ou permissao foi criada ou alterada e que nenhuma UI ou seletor foi criado.
+- Confirmado que `.env.local` permanece ignorado e que nenhuma chave, token, JWT, service role, senha ou URL com credencial foi versionada; as fixtures pgTAP sao ficticias e finalizam com `rollback`.
 
 ## Decisoes aprovadas incorporadas
 

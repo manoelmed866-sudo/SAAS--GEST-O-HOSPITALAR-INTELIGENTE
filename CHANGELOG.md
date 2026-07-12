@@ -6,6 +6,19 @@ Todas as mudancas relevantes do projeto devem ser registradas aqui.
 
 ## 2026-07-12
 
+### Checkpoint - Sprint 03D3 - Contexto institucional ativo seguro
+
+- Criado o modulo `src/lib/auth/context-cookie.ts`, responsavel exclusivamente pelo ciclo de vida do cookie `ghi_active_context`, sem importar Supabase, sem consultar banco, sem `localStorage` ou `sessionStorage` e sem registrar o conteudo do cookie.
+- Definido payload minimo persistido: apenas `organizationId`, `hospitalId` e `v: 1`; nenhum papel, permissao, nome institucional ou dado clinico. A versao `v` e acrescentada internamente pelo modulo, nunca pelo chamador.
+- Configurado o cookie como `httpOnly`, `SameSite=Lax`, `Secure` apenas em producao (`NODE_ENV === "production"`), `path` `/painel` e `maxAge` de 12 horas (`60 * 60 * 12`), alinhado ao plantao de urgencia e emergencia.
+- Adotada validacao Zod strict na leitura e tambem na escrita: UUID valido obrigatorio, `v` igual a 1, JSON invalido e campos extras rejeitados; escrita com selecao invalida lanca erro generico, sem expor IDs ou conteudo, e nao grava o cookie.
+- Estendido `src/lib/auth/context.ts` com `validateActiveContext` e `resolveActiveContext`: o cookie e apenas um ponteiro e nunca a fonte de autorizacao; a validacao revalida no servidor sob RLS, consultando `hospitals` com `select("id, organization_id")` e filtros `id`, `organization_id` e `status = 'active'` via `maybeSingle()`, usando somente o cliente Supabase server-side autenticado, sem service role.
+- Definidos os quatro estados discriminados `active`, `absent`, `invalid` e `error`, sem colapsar um no outro e sem contexto parcial: erro tecnico permanece `error` e nao apaga automaticamente o contexto; contexto ausente e distinto de contexto invalido; contexto invalido nao e tratado como erro tecnico.
+- Integrada a limpeza do cookie ao `logoutAction`: `clearContextCookie` e chamado no inicio da acao, antes de qualquer redirect e antes de qualquer erro do `signOut`, mesmo sem usuario autenticado, preservando `signOut({ scope: "local" })`, a mensagem generica de erro, `revalidatePath` e o redirect final.
+- Adicionado teste pgTAP `supabase/tests/006-sprint-03d3-active-context.test.sql`, sob `authenticated`, transacional com `rollback`, reproduzindo exatamente a consulta de `validateActiveContext` em 10 cenarios: usuario hospitalar ativo, `organization_admin`, organizationId de outro tenant, hospital suspenso, organizacao suspensa, vinculo hospitalar revogado, papel hospitalar revogado, usuario sem vinculo, hospital de outro tenant e confirmacao de execucao como `authenticated`.
+- Confirmado que o cenario critico de papel hospitalar revogado com vinculo ativo e sem papel organizacional retorna 0 linhas: o RLS da Sprint 03A bloqueia a leitura de `hospitals` porque `current_user_has_hospital_permission` exige papel ativo e nao revogado; nenhuma correcao em TypeScript, migration ou RLS foi necessaria.
+- Aprovados lint, typecheck, 117 testes unitarios, build, `db:lint` e 94 verificacoes pgTAP; nenhuma migration criada e nenhuma ampliacao de RLS, grants, roles ou permissions; nenhuma UI ou seletor criado.
+
 ### Checkpoint - Sprint 03D1 - Inventario de acessos
 
 - Criada a camada server-side de inventario em `src/lib/auth/context.ts`, funcao `getAuthorizedContextInventory`, que lista as organizations e hospitals ativos e autorizados ao usuario atual, sem UI, sem seletor, sem persistencia de contexto e sem papeis ativos (papeis ficam reservados para a revalidacao de contexto das etapas 03D3/03D4).

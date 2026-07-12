@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { clearContextCookie } from "@/lib/auth/context-cookie";
 import { getSafeNextPath } from "@/lib/auth/redirects";
 import { createClient } from "@/lib/supabase/server";
 
@@ -84,6 +85,10 @@ export async function loginAction(
 }
 
 export async function logoutAction(): Promise<void> {
+  // Limpa o contexto institucional ativo antes de qualquer decisao de saida:
+  // ocorre mesmo sem usuario autenticado e mesmo que o signOut falhe adiante.
+  await clearContextCookie();
+
   const supabase = await createClient();
   const {
     data: { user },
