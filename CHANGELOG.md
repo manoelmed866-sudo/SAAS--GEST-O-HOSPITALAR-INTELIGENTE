@@ -6,6 +6,47 @@ Todas as mudancas relevantes do projeto devem ser registradas aqui.
 
 ## 2026-07-11
 
+### Planejamento - Sprint 03
+
+- Aberto o planejamento tecnico da Sprint 03 na branch `sprint/03-autenticacao-instituicoes-permissoes`.
+- Registrado modelo recomendado para autenticacao, organizacoes, hospitais, perfis, vinculos institucionais, vinculos hospitalares, papeis, permissoes, contexto ativo e RLS.
+- Registrada recomendacao de bloquear cadastro publico inicial e priorizar usuarios previamente cadastrados ou convidados.
+- Registrado faseamento 03A, 03B, 03C e 03D, sem implementar codigo funcional.
+- Confirmado que nenhuma dependencia, migracao, API, tela, usuario, dado ficticio, Docker ou Supabase foi criado nesta etapa.
+
+### Decisoes aprovadas - Sprint 03
+
+- Adotado `organization` como nome tecnico canonico e Instituicao como termo principal de interface e documentacao voltada ao usuario.
+- Aprovado cadastro publico bloqueado na primeira implementacao, com entrada por convite institucional ou provisionamento administrativo.
+- Aprovado convite institucional obrigatorio para usuarios comuns, com uso unico, expiracao, revogacao e auditoria.
+- Aprovada confirmacao de e-mail no fluxo de convite, testada localmente com Mailpit.
+- Aprovados os papeis minimos `platform_admin`, `organization_admin`, `hospital_admin`, `auditor` e `member`.
+- Registrados limites de criacao e gestao de hospitals, separando plataforma, organization e hospital.
+- Registrado auditor inicial como papel somente leitura, sem acesso clinico automatico.
+- Registrado que, naquela etapa de decisoes, a Sprint 03A ainda nao havia sido iniciada.
+
+### Implementacao escrita - Sprint 03A
+
+- Criadas migracoes versionadas para modelo institucional, profiles, organizations, hospitals, memberships, papeis relacionais, permissoes relacionais e mapeamentos.
+- Criado schema privado `app_private` com funcao tecnica de `updated_at` e funcoes booleanas de autorizacao para RLS.
+- Escritas politicas RLS, grants minimos e revogacoes para as 11 tabelas publicas da Sprint 03A.
+- Criados testes pgTAP de estrutura, integridade e RLS com dados ficticios transacionais e rollback.
+- Confirmado que Sprint 03B, Sprint 03C e Sprint 03D nao foram iniciadas.
+
+### Encerramento tecnico - Sprint 03A
+
+- Concluida a Sprint 03A com modelo institucional, vinculos, papeis, permissoes, schema privado `app_private`, funcoes de autorizacao, RLS e grants minimos.
+- Confirmadas 11 tabelas publicas, 4 migracoes da Sprint 03A, RLS nas 11 tabelas, ausencia de grants `DELETE`, ausencia de politicas para `anon`, ausencia de `platform_admin` semeado e ausencia de trigger em `auth.users`.
+- Aprovados `db:reset`, `db:lint` e `db:test`, com 4 arquivos SQL e 70 verificacoes pgTAP.
+- Regenerado `src/types/database.types.ts` pela Supabase CLI.
+- Aprovados lint, typecheck, 6 arquivos de testes da aplicacao, 14 testes da aplicacao, build e check completo.
+- Registradas correcoes nos testes pgTAP: baseline da Sprint 02, assinatura de `throws_ok`, CTE modificadora e fixture do `hospital_admin`.
+- Confirmado que nenhuma migracao foi alterada apos a primeira validacao local.
+- Confirmado que Supabase local foi encerrado e que nao havia conteineres em execucao apos a validacao.
+- Confirmado que nenhum dado clinico, dado real, usuario real, credencial versionada ou projeto Supabase remoto foi criado.
+- Mantido o acompanhamento da vulnerabilidade moderada transitiva de PostCSS em `KNOWN_ISSUES.md`, sem executar correcao forcada.
+- Mantidas Sprint 03B, Sprint 03C e Sprint 03D como nao iniciadas.
+
 ### Encerramento - Sprint 02
 
 - Encerrada a Sprint 02 na branch `sprint/02-banco-local-migracoes`.

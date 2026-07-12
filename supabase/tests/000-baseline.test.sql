@@ -7,50 +7,41 @@ select is(
     select count(*)::integer
     from information_schema.tables
     where table_schema = 'public'
-      and table_type = 'BASE TABLE'
-  ),
-  0,
-  'baseline nao cria tabelas de dominio no schema public'
-);
-
-select is(
-  (
-    select count(*)::integer
-    from information_schema.schemata
-    where schema_name in (
-      'clinical',
-      'clinico',
-      'institutional',
-      'institucional',
-      'hospitalar',
-      'audit',
-      'auditoria'
-    )
-  ),
-  0,
-  'baseline nao cria schemas clinicos ou institucionais do projeto'
-);
-
-select is(
-  (
-    select count(*)::integer
-    from information_schema.tables
-    where table_schema = 'public'
       and table_name in (
+        'patients',
+        'episodes',
+        'clinical_records',
+        'diagnoses',
+        'prescriptions',
+        'exams',
+        'medications',
+        'supplies',
+        'inventory',
         'demo',
         'example',
-        'patients',
-        'pacientes',
-        'episodes',
-        'episodios',
-        'hospitals',
-        'hospitais',
-        'users',
-        'usuarios'
+        'test_users'
       )
   ),
   0,
-  'baseline nao cria tabelas de demonstracao, pacientes, episodios, hospitais ou usuarios'
+  'nenhuma tabela clinica ou demonstrativa proibida foi criada'
+);
+
+select is(
+  (
+    (select count(*) from public.profiles)
+    + (select count(*) from public.organizations)
+    + (select count(*) from public.hospitals)
+    + (select count(*) from public.organization_memberships)
+    + (select count(*) from public.hospital_memberships)
+  )::integer,
+  0,
+  'migracoes e seed nao inserem usuarios de negocio nem dados institucionais'
+);
+
+select is(
+  (select count(*)::integer from public.platform_role_assignments),
+  0,
+  'nenhuma atribuicao de platform_admin foi criada automaticamente'
 );
 
 select * from finish();

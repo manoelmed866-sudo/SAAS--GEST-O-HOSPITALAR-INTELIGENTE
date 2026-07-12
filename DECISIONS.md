@@ -173,3 +173,156 @@ O design system nao foi removido. Ele permanece como trilha transversal do produ
 A Supabase CLI sera usada como dependencia de desenvolvimento local do projeto, com versao estavel e exata, sem faixa flutuante e sem beta, canary ou preview. Os comandos serao expostos por scripts npm e tambem poderao ser executados manualmente com `npm exec supabase --`, sem exigir instalacao global da CLI.
 
 O Supabase local da Sprint 02 nao sera vinculado a projeto remoto. Nao sera executado `supabase login`, `supabase link` nem acesso a projeto remoto. Docker Desktop ou runtime Docker compativel e pre-requisito externo. Nenhum dado real sera utilizado e chaves locais geradas nao deverao ser copiadas para arquivos versionados.
+
+### DEC-028 - Sprint 03 com vinculos institucionais e hospitalares separados
+
+A Sprint 03 devera usar modelo hierarquico com `organization_memberships` e `hospital_memberships` separadas, mantendo dependencia explicita entre vinculo institucional e vinculo hospitalar.
+
+Motivo: melhorar clareza, integridade referencial, auditoria de RLS, testes pgTAP e suporte a usuarios com papeis diferentes em hospitais diferentes, reduzindo risco de privilegios excessivos.
+
+### DEC-029 - Papeis, permissoes e acesso clinico separados
+
+Papel, permissao, escopo, vinculo, acesso administrativo e acesso clinico serao tratados como conceitos diferentes.
+
+Motivo: impedir que um administrador tecnico ou institucional receba acesso clinico automatico e permitir autorizacao por menor privilegio.
+
+### DEC-030 - Cadastro publico bloqueado no fluxo inicial
+
+O fluxo inicial recomendado para a Sprint 03 sera login apenas para usuarios previamente cadastrados ou convidados institucionalmente, sem cadastro publico aberto.
+
+Motivo: plataforma hospitalar exige rastreabilidade, controle institucional e reducao de risco desde o primeiro acesso.
+
+### DEC-031 - Contexto ativo sempre validado no banco
+
+Organizacao ativa, hospital ativo, papel e permissoes efetivas nao serao considerados validos apenas por query string, cookie, `localStorage` ou identificador enviado pelo cliente.
+
+Motivo: impedir acesso cruzado entre instituicoes ou hospitais por manipulacao de identificadores.
+
+### DEC-032 - Organization como nome tecnico canonico
+
+`organization` sera o nome tecnico e canonico no banco e no codigo. Instituicao sera o termo principal na interface e na documentacao voltada ao usuario.
+
+`organization` podera representar hospital isolado, rede hospitalar, clinica, organizacao de saude, orgao publico ou grupo empresarial. `hospital` continuara sendo entidade subordinada a `organization`.
+
+Motivo: preservar uma nomenclatura tecnica estavel e flexivel, sem limitar o modelo a um unico tipo de instituicao.
+
+### DEC-033 - Cadastro publico bloqueado na primeira implementacao
+
+Nao havera fluxo publico de criacao de conta na primeira implementacao da Sprint 03. Usuarios somente poderao entrar por convite institucional ou provisionamento administrativo.
+
+Qualquer cadastro publico futuro dependera de decisao especifica e nova revisao de seguranca.
+
+Motivo: reduzir risco de acesso indevido em uma plataforma hospitalar multi-institucional.
+
+### DEC-034 - Convite institucional obrigatorio para usuarios comuns
+
+Convite institucional sera obrigatorio para usuarios comuns. O primeiro `organization_admin` sera vinculado pelo `platform_admin`.
+
+Convites deverao estar associados a e-mail, organization, hospital quando aplicavel, papel, remetente, data de criacao, data de expiracao e estado. Tambem deverao ser de uso unico, revogaveis, expiraveis e auditaveis.
+
+Convite aceito nao podera ser reutilizado e nenhum convite podera conceder papel superior ao do emissor.
+
+Motivo: garantir rastreabilidade e impedir criacao de acesso fora do escopo autorizado.
+
+### DEC-035 - Confirmacao de e-mail obrigatoria no fluxo de convite
+
+Confirmacao de e-mail sera obrigatoria no fluxo de convite. No ambiente local, o fluxo sera testado com o Mailpit fornecido pelo Supabase.
+
+Nenhuma confirmacao sera simulada com contas reais e nenhuma configuracao remota sera criada nesta fase.
+
+O `platform_admin` inicial podera ser provisionado por procedimento administrativo seguro e documentado.
+
+Motivo: confirmar posse do e-mail antes de liberar acesso e manter a validacao restrita ao ambiente local nesta etapa.
+
+### DEC-036 - Limites de criacao e gestao de hospitals
+
+Na primeira implementacao, `platform_admin` podera criar `organization`, criar `hospital`, vincular o primeiro `organization_admin` e ativar ou suspender `organization` por motivos tecnicos ou contratuais.
+
+`organization_admin` podera visualizar a propria organization, editar campos institucionais permitidos, visualizar hospitals da propria organization, editar campos operacionais permitidos, gerenciar vinculos dentro do proprio tenant e solicitar ou preparar criacao de novo hospital, sem persistir diretamente nesta fase.
+
+`organization_admin` nao podera criar diretamente hospital na primeira implementacao, mover hospital entre organizations, alterar identificadores estruturais, excluir fisicamente organization ou hospital, alterar situacao contratual da plataforma, conceder `platform_admin` ou acessar dados de outra organization.
+
+`hospital_admin` administrara somente o hospital ao qual esta vinculado, sem criar novos hospitals e sem alterar dados da organization fora do escopo hospitalar.
+
+Motivo: separar governanca da plataforma, administracao institucional e administracao hospitalar com menor privilegio.
+
+### DEC-037 - Desativacao logica para organizations, hospitals e vinculos
+
+Organizations, hospitals e vinculos institucionais deverao usar desativacao logica na primeira implementacao. Exclusao fisica nao sera usada como mecanismo operacional.
+
+Motivo: preservar rastreabilidade, historico administrativo e auditoria.
+
+### DEC-038 - Auditor inicial somente leitura
+
+O papel `auditor` sera inicialmente somente leitura dentro do escopo concedido.
+
+O auditor podera visualizar organization, hospital, vinculos, papeis, permissoes e logs de auditoria futuros. Nao podera criar ou alterar registros, gerenciar vinculos, alterar papeis ou acessar dados clinicos automaticamente.
+
+Qualquer acesso clinico futuro exigira permissao clinica separada, escopo institucional explicito, finalidade registrada, autoria, data e hora, e trilha de auditoria.
+
+Motivo: permitir revisao e controle sem transformar auditoria em permissao clinica implicita.
+
+### DEC-039 - Papeis minimos da primeira implementacao
+
+Os papeis minimos da primeira implementacao serao `platform_admin`, `organization_admin`, `hospital_admin`, `auditor` e `member`.
+
+Nao serao adotados ainda como papeis definitivos medico, enfermeiro, farmaceutico, profissional assistencial, gestor clinico ou operador de estoque. Esses papeis serao definidos junto aos modulos correspondentes.
+
+Motivo: manter a Sprint 03 focada em acesso institucional e evitar antecipar regras de modulos clinicos ou operacionais.
+
+### DEC-040 - Estados canonicos com text e CHECK constraints
+
+Na Sprint 03A, estados canonicos serao modelados como `text` com `CHECK constraints`, sem enums PostgreSQL.
+
+Estados aprovados:
+
+- `profiles.status`: `pending`, `active`, `suspended`, `deactivated`.
+- `organizations.status`: `active`, `suspended`, `inactive`.
+- `hospitals.status`: `active`, `suspended`, `inactive`.
+- `organization_memberships.status`: `pending`, `active`, `suspended`, `revoked`.
+- `hospital_memberships.status`: `pending`, `active`, `suspended`, `revoked`.
+- Atribuicoes de papel: `active`, `revoked`.
+
+Motivo: permitir evolucao controlada nesta fase sem acoplar o banco a enums prematuros.
+
+### DEC-041 - Estrutura relacional das memberships e atribuicoes de papeis
+
+A Sprint 03A implementara `organization_memberships`, `organization_membership_roles`, `hospital_memberships` e `hospital_membership_roles` como estruturas separadas.
+
+`hospital_memberships` devera validar por FKs compostas que o hospital e o organization membership pertencem a mesma organization.
+
+Motivo: impedir associacoes cruzadas entre tenants, permitir papeis diferentes por hospital e facilitar RLS auditavel.
+
+### DEC-042 - Papeis e permissoes relacionais
+
+Papeis, permissoes e seus mapeamentos serao relacionais por meio de `roles`, `permissions` e `role_permissions`.
+
+O mapeamento inicial de papeis e permissoes e dado estrutural da aplicacao e devera ser inserido por migracao, nao por `seed.sql`.
+
+Motivo: permitir auditoria, expansao por escopo e impedir mistura entre permissoes de plataforma, organization e hospital.
+
+### DEC-043 - Schema privado app_private para funcoes de autorizacao
+
+A Sprint 03A criara o schema privado `app_private` para funcoes tecnicas de `updated_at` e funcoes booleanas de autorizacao usadas por RLS.
+
+O schema nao devera ser exposto pela Data API e nao recebera tabelas nesta fase.
+
+Funcoes `security definer` deverao usar `search_path = ''`, nomes totalmente qualificados e retornar somente boolean quando forem funcoes de autorizacao.
+
+Motivo: reduzir recursao em politicas RLS sem expor registros institucionais.
+
+### DEC-044 - Sem trigger automatico em auth.users na Sprint 03A
+
+A Sprint 03A nao criara trigger automatico em `auth.users` e nao inserira `profile` automaticamente.
+
+A criacao de `profile` sera tratada posteriormente por fluxo administrativo ou fase autorizada.
+
+Motivo: evitar criacao inconsistente de usuarios e manter o provisionamento institucional sob controle.
+
+### DEC-045 - Platform admin nao sera semeado
+
+Nenhum `platform_admin`, usuario inicial, organization, hospital ou membership sera inserido pela Sprint 03A.
+
+O provisionamento inicial do `platform_admin` sera definido posteriormente por procedimento administrativo seguro e documentado.
+
+Motivo: impedir credenciais, usuarios ou dados institucionais permanentes dentro de migracoes estruturais.

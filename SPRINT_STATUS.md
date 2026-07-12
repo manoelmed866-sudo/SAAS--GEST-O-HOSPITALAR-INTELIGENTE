@@ -11,7 +11,7 @@ As sprints constroem progressivamente a Visao Funcional Completa. A Primeira Ver
 | Sprint 00 | Documentacao permanente | Concluída |
 | Sprint 01 | Fundacao visual e tecnica inicial | Concluída |
 | Sprint 02 | Fundacao local do banco e migracoes | Concluída |
-| Sprint 03 | Autenticacao, contexto institucional e extensao visual autenticada | Não iniciada |
+| Sprint 03 | Autenticacao, contexto institucional e extensao visual autenticada | Em execução |
 | Sprint 04 | Administracao, governanca e design system autenticado inicial | Pendente |
 | Sprint 05 | Cadastro institucional hospitalar | Pendente |
 | Sprint 06 | Rede de referencia e comunicacao institucional | Pendente |
@@ -70,7 +70,23 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
 - Os servicos locais foram encerrados apos a validacao.
 - Nenhuma tabela de dominio foi criada e nenhum dado real foi utilizado.
 - O design system permanece como trilha transversal do produto, sem ser removido do planejamento.
-- A Sprint 03 permanece nao iniciada.
+- A Sprint 03 permanece sem implementacao funcional.
+
+## Observacao sobre Sprint 03
+
+- A Sprint 03 foi aberta em modo de planejamento tecnico e entrou em execucao pela Sprint 03A.
+- O planejamento adota `organization` como nome tecnico canonico e Instituicao como termo principal de interface e documentacao voltada ao usuario.
+- O planejamento aprova modelo institucional com organizations, hospitals, profiles, vinculos institucionais, vinculos hospitalares, papeis, permissoes, contexto ativo validado, convites institucionais, confirmacao de e-mail e RLS por padrao.
+- Papeis minimos aprovados: `platform_admin`, `organization_admin`, `hospital_admin`, `auditor` e `member`.
+- Cadastro publico fica bloqueado na primeira implementacao; usuarios comuns entram por convite institucional.
+- Sprint 03A esta concluida: modelo institucional, memberships, papeis, permissoes, funcoes privadas, RLS, grants e testes pgTAP foram implementados.
+- Sprint 03A criou 11 tabelas publicas, 4 migracoes, schema privado `app_private`, funcoes booleanas de autorizacao, papeis e permissoes relacionais, RLS nas 11 tabelas, grants minimos, sem `DELETE`, sem politicas para `anon`, sem `platform_admin` semeado e sem trigger em `auth.users`.
+- Validacao local da Sprint 03A concluida: `db:reset`, `db:lint`, `db:test`, geracao de tipos, lint, typecheck, testes da aplicacao, build e check completo aprovados.
+- Resultado validado da Sprint 03A: 4 arquivos SQL e 70 verificacoes pgTAP aprovadas; 6 arquivos de testes da aplicacao e 14 testes aprovados.
+- `src/types/database.types.ts` foi regenerado pela Supabase CLI.
+- Supabase local foi encerrado apos a validacao e `docker ps` foi validado sem conteineres em execucao.
+- Nenhuma tabela clinica, dado real, dado clinico, usuario real, credencial versionada ou projeto Supabase remoto foi criado.
+- Sprint 03B, Sprint 03C e Sprint 03D permanecem nao iniciadas.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 
