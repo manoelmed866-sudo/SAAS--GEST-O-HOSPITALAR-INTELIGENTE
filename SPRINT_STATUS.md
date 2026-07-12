@@ -86,11 +86,18 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
 - `src/types/database.types.ts` foi regenerado pela Supabase CLI.
 - Supabase local foi encerrado apos a validacao e `docker ps` foi validado sem conteineres em execucao.
 - Nenhuma tabela clinica, dado real, dado clinico, usuario real, credencial versionada ou projeto Supabase remoto foi criado.
-- Sprint 03B esta em validacao tecnica: infraestrutura Supabase SSR, validacao publica de ambiente, clientes tipados, cookies e Proxy de renovacao de sessao.
-- Sprint 03B nao implementa login, logout, protecao de rotas, redirecionamentos, convites, usuarios, contexto ativo, APIs de negocio, novas tabelas ou novas migracoes.
+- Sprint 03B foi concluida e versionada: infraestrutura Supabase SSR, validacao publica de ambiente, clientes tipados, cookies e Proxy de renovacao de sessao.
+- Sprint 03B nao implementou login, logout, protecao de rotas, redirecionamentos, convites, usuarios, contexto ativo, APIs de negocio, novas tabelas ou novas migracoes.
 - Validacao tecnica da Sprint 03B: lint, typecheck, 11 arquivos de testes, 43 testes, build sem `.env.local` e check completo aprovados.
 - Auditorias npm da Sprint 03B mantem apenas a vulnerabilidade moderada ja conhecida de PostCSS via Next.js, sem vulnerabilidade alta ou critica nova.
-- Sprint 03C e Sprint 03D permanecem nao iniciadas.
+- Sprint 03C foi implementada e validada localmente: autenticacao por e-mail e senha, logout, rota protegida `/painel`, pagina de acesso negado, redirecionamento seguro e validacao de usuario com perfil/vinculo ativo.
+- Sprint 03C nao implementa cadastro publico, convites, recuperacao de senha, confirmacao de e-mail funcional, MFA, contexto institucional ativo, selecao de instituicao, selecao de hospital, novas tabelas, migracoes, APIs de negocio ou modulos clinicos.
+- Validacao da Sprint 03C confirmou bloqueio por profile inativo, bloqueio por vinculo invalido, acesso institucional valido e acesso hospitalar valido, todos validados por RLS no banco e no servidor.
+- Defeito corrigido na Sprint 03C: a consulta hospitalar em `src/lib/auth/access.ts` embutia `organizations!inner`, cuja leitura e negada por RLS a usuario hospital-only sem papel organizacional, negando indevidamente acesso a `/painel`. A correcao removeu apenas esse embed e o filtro de status de organization associado, sem alterar RLS, migracoes ou ampliar permissoes; a exigencia de organization ativa permanece garantida transitivamente pela funcao de permissao hospitalar.
+- Validacao manual end-to-end da Sprint 03C aprovada: usuario hospital-only autenticado chegou a `/painel` sem redirecionamento para `/acesso-negado` e sem tela de erro.
+- Resultado validado da Sprint 03C: 76 testes unitarios e 73 verificacoes pgTAP aprovados, incluindo novo teste pgTAP de regressao de acesso hospitalar; lint, typecheck, build, `db:lint` e `db:test` aprovados.
+- Vulnerabilidade moderada transitiva ja conhecida de PostCSS via Next.js permanece acompanhada em `KNOWN_ISSUES.md`; `npm audit fix --force` continua proibido por causar downgrade forcado do Next.js.
+- Sprint 03D permanece nao iniciada.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 

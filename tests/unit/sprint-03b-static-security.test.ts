@@ -5,7 +5,6 @@ const sprintSourceFiles = [
   "src/lib/supabase/client.ts",
   "src/lib/supabase/server.ts",
   "src/lib/supabase/proxy.ts",
-  "src/proxy.ts",
 ];
 
 function readProjectFile(path: string) {
@@ -22,7 +21,6 @@ describe("revisao estatica de seguranca da Sprint 03B", () => {
     expect(source).not.toMatch(/access_token/i);
     expect(source).not.toMatch(/localStorage/);
     expect(source).not.toMatch(/auth-helpers/i);
-    expect(source).not.toMatch(/redirect/i);
     expect(source).not.toMatch(/organization_id/);
     expect(source).not.toMatch(/hospital_id/);
   });

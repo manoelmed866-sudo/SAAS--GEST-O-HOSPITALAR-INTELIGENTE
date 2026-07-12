@@ -349,3 +349,21 @@ Durante a Sprint 03B, o Proxy nao redirecionara usuarios, nao classificara rotas
 A validacao de ambiente sera preguicosa: variaveis publicas do Supabase serao lidas apenas quando os clientes forem criados ou quando o Proxy for executado. Isso preserva lint, typecheck, testes e build sem `.env.local`, desde que a aplicacao atual nao chame Supabase durante geracao estatica.
 
 Motivo: preparar a fundacao SSR segura para autenticacao futura sem antecipar login, logout, protecao de rotas, contexto ativo ou autorizacao institucional.
+
+### DEC-047 - Sprint 03C com login protegido sem contexto ativo
+
+A Sprint 03C implementara login, logout, pagina de acesso negado, rota protegida `/painel`, redirecionamento seguro e validacao de usuario no servidor.
+
+O acesso inicial ao painel exigira usuario autenticado, perfil ativo e pelo menos um papel ou vinculo ativo de plataforma, instituicao ou hospital. Essa validacao nao seleciona instituicao, nao seleciona hospital, nao cria contexto institucional ativo e nao substitui as politicas RLS do banco.
+
+Cadastro publico, convite persistido, recuperacao de senha, confirmacao de e-mail funcional, MFA, criacao automatica de perfil, trigger em `auth.users`, novas tabelas, migracoes e contexto ativo ficam fora da Sprint 03C.
+
+Motivo: liberar a primeira porta autenticada da aplicacao com menor privilegio e mensagens seguras, sem antecipar a Sprint 03D nem criar atalhos de autorizacao.
+
+### DEC-048 - Gate hospitalar nao depende de leitura de organizations
+
+A verificacao de acesso hospitalar em `src/lib/auth/access.ts` nao devera exigir leitura direta da tabela `organizations`. A consulta do gate hospitalar consulta apenas `hospital_memberships`, `hospitals`, `organization_memberships` do proprio usuario e `hospital_membership_roles` com seus `roles`.
+
+A exigencia de organization ativa continua garantida de forma transitiva pela funcao privada `current_user_has_hospital_permission`, que valida organization e hospital ativos ao autorizar a leitura de `hospitals` por RLS.
+
+Motivo: usuario com vinculo hospitalar valido, mas sem papel de escopo organizacao, nao possui permissao de leitura em `organizations`, entao exigir essa leitura em join interno nega indevidamente o acesso. A decisao preserva menor privilegio e evita ampliar permissoes ou afrouxar RLS apenas para satisfazer a consulta de aplicacao. Um teste pgTAP de regressao para usuario hospital-only protege essa decisao.

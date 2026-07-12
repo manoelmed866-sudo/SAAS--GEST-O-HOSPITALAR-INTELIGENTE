@@ -2,21 +2,32 @@ import { existsSync } from "node:fs";
 import { NextRequest, NextResponse } from "next/server";
 
 const mocks = vi.hoisted(() => ({
-  updateSession: vi.fn(async () => NextResponse.next()),
+  refreshSession: vi.fn(async () => ({
+    response: NextResponse.next(),
+    claims: null as Record<string, unknown> | null,
+  })),
 }));
 
 vi.mock("@/lib/supabase/proxy", () => ({
-  updateSession: mocks.updateSession,
+  refreshSession: mocks.refreshSession,
 }));
 
 describe("src/proxy", () => {
-  it("exporta proxy e delega para updateSession", async () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.refreshSession.mockResolvedValue({
+      response: NextResponse.next(),
+      claims: null,
+    });
+  });
+
+  it("exporta proxy e delega para refreshSession", async () => {
     const { proxy } = await import("@/proxy");
     const request = new NextRequest("https://app.local/");
 
     await proxy(request);
 
-    expect(mocks.updateSession).toHaveBeenCalledWith(request);
+    expect(mocks.refreshSession).toHaveBeenCalledWith(request);
   });
 
   it("exporta matcher sem excluir areas futuras da aplicacao", async () => {
@@ -35,5 +46,69 @@ describe("src/proxy", () => {
   it("nao cria middleware.ts", () => {
     expect(existsSync("middleware.ts")).toBe(false);
     expect(existsSync("src/middleware.ts")).toBe(false);
+  });
+
+  it("mantem rotas publicas sem redirecionamento quando nao ha sessao", async () => {
+    const { proxy } = await import("@/proxy");
+
+    const homeResponse = await proxy(new NextRequest("https://app.local/"));
+    const loginResponse = await proxy(
+      new NextRequest("https://app.local/login"),
+    );
+    const deniedResponse = await proxy(
+      new NextRequest("https://app.local/acesso-negado"),
+    );
+
+    expect(homeResponse.headers.get("location")).toBeNull();
+    expect(loginResponse.headers.get("location")).toBeNull();
+    expect(deniedResponse.headers.get("location")).toBeNull();
+  });
+
+  it("redireciona usuario anonimo de rota protegida para login com next seguro", async () => {
+    const { proxy } = await import("@/proxy");
+
+    const response = await proxy(new NextRequest("https://app.local/painel"));
+
+    expect(response.headers.get("location")).toBe(
+      "https://app.local/login?next=%2Fpainel",
+    );
+  });
+
+  it("preserva acesso ao painel quando ha claims autenticadas", async () => {
+    mocks.refreshSession.mockResolvedValueOnce({
+      response: NextResponse.next(),
+      claims: { sub: "usuario-1" },
+    });
+    const { proxy } = await import("@/proxy");
+
+    const response = await proxy(new NextRequest("https://app.local/painel"));
+
+    expect(response.headers.get("location")).toBeNull();
+  });
+
+  it("redireciona login autenticado para o painel", async () => {
+    mocks.refreshSession.mockResolvedValueOnce({
+      response: NextResponse.next(),
+      claims: { sub: "usuario-1" },
+    });
+    const { proxy } = await import("@/proxy");
+
+    const response = await proxy(new NextRequest("https://app.local/login"));
+
+    expect(response.headers.get("location")).toBe("https://app.local/painel");
+  });
+
+  it("preserva cookies renovados ao redirecionar", async () => {
+    const refreshedResponse = NextResponse.next();
+    refreshedResponse.cookies.set("sb-session", "novo", { path: "/" });
+    mocks.refreshSession.mockResolvedValueOnce({
+      response: refreshedResponse,
+      claims: null,
+    });
+    const { proxy } = await import("@/proxy");
+
+    const response = await proxy(new NextRequest("https://app.local/painel"));
+
+    expect(response.cookies.get("sb-session")?.value).toBe("novo");
   });
 });

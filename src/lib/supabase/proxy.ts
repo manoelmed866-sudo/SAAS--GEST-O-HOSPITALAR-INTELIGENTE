@@ -3,6 +3,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getPublicEnv } from "@/lib/env/public";
 import type { Database } from "@/types/database.types";
 
+export type SessionRefreshResult = {
+  response: NextResponse;
+  claims: Record<string, unknown> | null;
+};
+
 function createPassThroughResponse(request: NextRequest): NextResponse {
   return NextResponse.next({
     request: {
@@ -11,9 +16,9 @@ function createPassThroughResponse(request: NextRequest): NextResponse {
   });
 }
 
-export async function updateSession(
+export async function refreshSession(
   request: NextRequest,
-): Promise<NextResponse> {
+): Promise<SessionRefreshResult> {
   const env = getPublicEnv();
   let response = createPassThroughResponse(request);
 
@@ -52,7 +57,18 @@ export async function updateSession(
     },
   );
 
-  await supabase.auth.getClaims();
+  const { data } = await supabase.auth.getClaims();
+
+  return {
+    response,
+    claims: data?.claims ?? null,
+  };
+}
+
+export async function updateSession(
+  request: NextRequest,
+): Promise<NextResponse> {
+  const { response } = await refreshSession(request);
 
   return response;
 }

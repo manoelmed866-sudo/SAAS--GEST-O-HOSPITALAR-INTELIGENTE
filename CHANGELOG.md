@@ -4,6 +4,21 @@
 
 Todas as mudancas relevantes do projeto devem ser registradas aqui.
 
+## 2026-07-12
+
+### Correcao e validacao - Sprint 03C
+
+- Corrigido defeito de autorizacao em `src/lib/auth/access.ts`: a consulta do gate hospitalar embutia `organizations!inner` e filtrava `organization_memberships.organizations.status`, exigindo leitura de `organizations` que o RLS nega a usuario hospitalar sem papel organizacional; por ser join interno, o vinculo hospitalar inteiro era descartado e o acesso negado indevidamente.
+- Removidos apenas o embed `organizations!inner` e o filtro de status de organization da consulta hospitalar, preservando a ordem dos gates `platform`, `organization` e `hospital`.
+- Confirmado que a exigencia de organization ativa continua garantida de forma transitiva pela funcao privada `current_user_has_hospital_permission`, sem ampliar permissoes e sem alterar politicas RLS, grants, papeis, permissoes, migracoes ou banco.
+- Ajustado o teste unitario `tests/unit/auth-access.test.ts` para o novo formato da consulta, com comentario esclarecendo que a suite cobre a logica de gates e nao o comportamento real do RLS.
+- Adicionado teste pgTAP de regressao `supabase/tests/004-sprint-03c-hospital-access.test.sql` para usuario hospital-only sem papel organizacional, validando acesso hospitalar liberado sob RLS como `authenticated`, trava de regressao do embed de organizations e bloqueio por organization suspensa.
+- Removida a pasta residual local `supabase/snippets/`, gerada pelo Supabase Studio, contendo apenas uma consulta ad hoc com e-mails ficticios `@example.test`, sem senhas, tokens, chaves, JWT ou service role; a pasta nao estava versionada.
+- Registrada validacao manual end-to-end da Sprint 03C: usuario hospital-only autenticado chegou a `/painel`, sem redirecionamento para `/acesso-negado` e sem tela de erro.
+- Confirmada instrumentacao de diagnostico temporaria adicionada e removida integralmente de `src/lib/auth/access.ts`, sem registrar cookies, tokens, JWT, sessao, UUID, e-mail ou dados pessoais e sem permanecer no codigo final.
+- Aprovados lint, typecheck, 76 testes unitarios, build, `db:lint` e 73 verificacoes pgTAP em banco local reconstruido por `db:reset`.
+- Mantida a vulnerabilidade moderada transitiva ja conhecida de PostCSS via Next.js em `KNOWN_ISSUES.md`; `npm audit fix --force` permanece proibido por causar downgrade forcado do Next.js.
+
 ## 2026-07-11
 
 ### Planejamento - Sprint 03
@@ -70,6 +85,18 @@ Todas as mudancas relevantes do projeto devem ser registradas aqui.
 - Confirmado que `src/types/database.types.ts`, migracoes e testes SQL nao foram alterados.
 - Confirmado que Docker e Supabase local nao foram iniciados nesta auditoria.
 - Auditorias npm mantiveram apenas a vulnerabilidade moderada ja conhecida de PostCSS via Next.js, sem vulnerabilidade alta ou critica nova.
+
+### Implementacao - Sprint 03C
+
+- Implementado fluxo visual de login em `/login` para contas previamente provisionadas ou vinculadas.
+- Implementado logout local com validacao de usuario atual antes de encerrar sessao.
+- Implementada rota protegida `/painel` com validacao de usuario autenticado, perfil ativo e vinculo ou papel ativo.
+- Implementada pagina publica `/acesso-negado` para usuario autenticado sem vinculo ativo autorizado.
+- Adicionado redirecionamento seguro de `next`, restrito a `/painel` e subcaminhos.
+- Atualizado Proxy para redirecionar usuario anonimo de rota protegida para login e usuario autenticado de `/login` para `/painel`, preservando cookies renovados.
+- Mantida autorizacao institucional no servidor e no banco; o Proxy nao consulta tabelas institucionais.
+- Criados testes unitarios para actions, redirecionamentos, proxy, paginas e validacao de acesso.
+- Confirmado que Sprint 03D nao foi iniciada e que nao houve novas dependencias, migracoes, APIs, dados reais, segredos ou contexto institucional ativo.
 
 ### Encerramento - Sprint 02
 

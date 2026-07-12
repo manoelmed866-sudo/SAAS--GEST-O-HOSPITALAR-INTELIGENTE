@@ -69,12 +69,17 @@ describe("updateSession", () => {
   }
 
   it("cria cliente SSR, fornece cookies e chama getClaims uma vez", async () => {
-    const { updateSession } = await import("@/lib/supabase/proxy");
+    const { refreshSession, updateSession } = await import(
+      "@/lib/supabase/proxy"
+    );
     const request = makeRequest();
 
+    const refreshResult = await refreshSession(request);
     const response = await updateSession(request);
     const options = getProxyCookieController();
 
+    expect(refreshResult.response).toBeInstanceOf(NextResponse);
+    expect(refreshResult.claims).toEqual({});
     expect(response).toBeInstanceOf(NextResponse);
     expect(mocks.createServerClient).toHaveBeenCalledWith(
       "http://127.0.0.1:54321",
@@ -92,7 +97,7 @@ describe("updateSession", () => {
         { name: "sb-session", value: "antigo" },
       ]),
     );
-    expect(mocks.getClaims).toHaveBeenCalledTimes(1);
+    expect(mocks.getClaims).toHaveBeenCalledTimes(2);
     expect(mocks.getSession).not.toHaveBeenCalled();
   });
 
@@ -131,11 +136,15 @@ describe("updateSession", () => {
   });
 
   it("nao redireciona e nao consulta tabelas institucionais", async () => {
-    const { updateSession } = await import("@/lib/supabase/proxy");
+    const { refreshSession, updateSession } = await import(
+      "@/lib/supabase/proxy"
+    );
 
     const response = await updateSession(makeRequest());
+    const refreshResult = await refreshSession(makeRequest());
 
     expect(response.headers.get("location")).toBeNull();
+    expect(refreshResult.response.headers.get("location")).toBeNull();
     expect(mocks.from).not.toHaveBeenCalled();
   });
 });

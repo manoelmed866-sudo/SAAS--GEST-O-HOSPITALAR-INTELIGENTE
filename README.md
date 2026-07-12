@@ -119,6 +119,8 @@ src/
   components/
   config/
   lib/
+    auth/
+    supabase/
 tests/
   setup.ts
   unit/
@@ -173,14 +175,15 @@ Depois, validar:
 - Os servicos locais foram desligados apos a validacao; para novos ciclos locais, o Docker Desktop deve estar aberto.
 - A Sprint 03A implementou o modelo institucional local, RLS e testes SQL.
 - A Sprint 03B implementou e validou tecnicamente a infraestrutura Supabase SSR com clientes tipados, cookies e Proxy de renovacao de sessao.
-- A aplicacao Next.js ainda nao possui login funcional.
-- A aplicacao Next.js ainda nao executa consultas funcionais ao banco durante a interface atual.
-- Autenticacao visual, login, logout, protecao de rotas e pagina de acesso negado ainda nao existem.
-- Contexto institucional ativo sera implementado somente em fase futura autorizada.
+- A Sprint 03C implementou e validou localmente login por e-mail e senha, logout, pagina de acesso negado, rota protegida `/painel`, redirecionamento seguro e validacao de acesso institucional basica no servidor.
+- O painel protegido valida usuario autenticado, perfil ativo e vinculo ou papel ativo, sem criar contexto institucional ativo.
+- Validacao end-to-end da Sprint 03C confirmou acesso valido para usuario institucional e para usuario hospitalar, incluindo usuario hospital-only sem papel organizacional, com bloqueio por perfil inativo ou vinculo invalido garantido por RLS.
+- A aplicacao Next.js ainda nao executa consultas clinicas, operacionais ou de dominio assistencial.
+- Contexto institucional ativo, selecao de instituicao e selecao de hospital permanecem reservados para a Sprint 03D ou fase futura autorizada.
 - Nao existe vinculo com projeto Supabase remoto nesta fase.
 - Nao ha API conectada ao banco.
 - Nao ha APIs.
-- Nao ha usuarios criados pela aplicacao, login funcional ou gestao visual de permissoes.
+- Nao ha usuarios criados pela aplicacao, cadastro publico, convite persistido, recuperacao de senha, confirmacao de e-mail funcional ou gestao visual de permissoes.
 - Nao ha pacientes, episodios, historico clinico, evolucoes, protocolos, exames, medicamentos, estoque ou leitos.
 - Nao ha dados reais.
 - Nao ha integracao com servicos externos.

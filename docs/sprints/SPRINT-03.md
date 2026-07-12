@@ -8,11 +8,13 @@ Sprint 03: Em execucao.
 
 Sprint 03A: Concluida.
 
-Sprint 03B: Em validacao tecnica.
+Sprint 03B: Concluida tecnicamente e versionada.
 
-Sprints 03C e 03D: Nao iniciadas.
+Sprint 03C: Concluida e validada localmente.
 
-Este documento registra o planejamento documental da Sprint 03, a implementacao da Sprint 03A e seu encerramento tecnico controlado. Nenhum codigo funcional TypeScript, dependencia adicional, tela, API, usuario, dado clinico, dado real, Supabase remoto ou autenticacao visual foi criado nesta etapa.
+Sprint 03D: Nao iniciada.
+
+Este documento registra o planejamento documental da Sprint 03, as implementacoes controladas das Sprints 03A, 03B e 03C e seus limites. A Sprint 03C criou fluxo visual de login/logout, protecao de rota e acesso negado, sem implementar Sprint 03D, APIs de negocio, novas tabelas, migracoes, usuarios, dados clinicos, dados reais ou Supabase remoto.
 
 ## Contexto
 
@@ -70,7 +72,7 @@ Planejar a fundacao de acesso seguro para uma plataforma SaaS multi-instituicao 
 - Homologacao publica.
 - Producao.
 - Dados reais.
-- Sprint 03C e 03D.
+- Sprint 03D.
 
 ## Principios de seguranca
 
@@ -1024,6 +1026,146 @@ A implementacao escrita da Sprint 03B foi auditada tecnicamente e validada por:
 
 A Sprint 03B permanece sem autenticar usuarios, sem proteger rotas e sem definir contexto ativo. A Sprint 03C e a Sprint 03D permanecem nao iniciadas.
 
+## Implementacao da Sprint 03C
+
+### Estado
+
+- Sprint 03 permanece em execucao.
+- Sprint 03A permanece concluida.
+- Sprint 03B permanece concluida tecnicamente e versionada.
+- Sprint 03C foi implementada e esta pronta para validacao local.
+- Sprint 03D permanece nao iniciada.
+
+Esta fase implementa exclusivamente login, logout, validacao segura de usuario, protecao de rota, redirecionamento seguro e pagina de acesso negado. Nao cria contexto institucional ativo, selecao de instituicao, selecao de hospital, convites, cadastro publico, recuperacao de senha, confirmacao de e-mail funcional, MFA, APIs de negocio, novas tabelas, novas migracoes, trigger em `auth.users`, usuarios, dados reais ou vinculo com Supabase remoto.
+
+### Rotas criadas
+
+- `/login`: rota publica de entrada para contas previamente provisionadas ou vinculadas.
+- `/painel`: rota protegida inicial.
+- `/acesso-negado`: rota publica para usuario autenticado sem vinculo ativo autorizado.
+
+As rotas foram organizadas em route groups:
+
+- `src/app/(auth)/login/`;
+- `src/app/(auth)/acesso-negado/`;
+- `src/app/(protected)/painel/`.
+
+### Acoes de autenticacao
+
+- `loginAction` valida e-mail, senha e destino de retorno com Zod.
+- E-mail e normalizado para minusculas antes de chamar `signInWithPassword`.
+- Erros de credenciais retornam mensagem generica, sem expor detalhe interno do Supabase.
+- `logoutAction` valida usuario atual com `getUser()` antes de chamar `signOut({ scope: "local" })`.
+- Nao ha cadastro publico, recuperacao de senha, convite, criacao de perfil, trigger em `auth.users` ou uso de `getSession()`.
+
+### Redirecionamento seguro
+
+- `src/lib/auth/redirects.ts` restringe `next` a `/painel` e subcaminhos de `/painel`.
+- URLs externas, caminhos relativos inseguros, `//`, barras invertidas, `/login` e `/acesso-negado` retornam para `/painel`.
+- O Proxy redireciona usuario anonimo de `/painel` para `/login?next=%2Fpainel`.
+- O Proxy redireciona usuario ja autenticado que acessar `/login` para `/painel`.
+
+### Validacao de acesso ao painel
+
+`src/lib/auth/access.ts` valida no servidor:
+
+- usuario autenticado por `supabase.auth.getUser()`;
+- `profiles.status = active`;
+- papel ativo de plataforma, ou vinculo institucional ativo com papel ativo, ou vinculo hospitalar ativo com papel ativo.
+
+Resultado sem usuario redireciona para login. Resultado sem vinculo ativo redireciona para `/acesso-negado`. Falha inesperada retorna erro generico. A validacao nao seleciona instituicao, nao seleciona hospital, nao grava cookie de contexto ativo e nao expõe identificadores institucionais para a tela.
+
+### Proxy apos Sprint 03C
+
+`src/lib/supabase/proxy.ts` passou a expor `refreshSession(request)`, mantendo `updateSession(request)` para compatibilidade. A renovacao continua usando `getClaims()` e cookies SSR, sem `getSession()` e sem consultas a tabelas institucionais no Proxy.
+
+`src/proxy.ts` passou a usar os claims apenas para distinguir presenca de sessao no redirecionamento inicial. A autorizacao institucional continua no servidor, em `requirePortalAccess()`, e no banco por RLS.
+
+### Limites preservados na Sprint 03C
+
+- Sprint 03D nao foi iniciada.
+- Nenhum contexto institucional ativo foi implementado.
+- Nenhum seletor de instituicao ou hospital foi criado.
+- Nenhuma tabela, migracao, RLS, grant, papel, permissao ou tipo gerado foi alterado.
+- Nenhuma dependencia foi instalada, removida ou atualizada.
+- Nenhum `.env.local` foi criado.
+- Nenhum segredo, token, senha, connection string completa ou dado real foi adicionado.
+- Nenhuma API, Route Handler de negocio ou modulo clinico foi criado.
+- Nenhum dado de paciente, episodio, evolucao, protocolo, exame, medicamento, estoque, leito ou faturamento foi criado.
+
+### Validacao preparada da Sprint 03C
+
+A implementacao local ja possui cobertura para:
+
+- normalizacao segura de `next`;
+- login com `signInWithPassword`;
+- logout local com `signOut({ scope: "local" })`;
+- bloqueio de uso de `getSession`;
+- ausencia de cadastro publico e recuperacao de senha;
+- rota protegida anonima redirecionando para login;
+- login autenticado redirecionando para painel;
+- preservacao de cookies renovados no redirecionamento;
+- validacao de perfil ativo e vinculo ativo;
+- acesso negado generico para usuario autenticado sem vinculo;
+- painel sem contexto institucional ativo.
+
+Resultados tecnicos desta implementacao deverao ser confirmados na validacao final da Sprint 03C.
+
+### Validacao final e correcao da Sprint 03C
+
+Estado: Sprint 03C concluida e validada localmente. Sprint 03D permanece nao iniciada.
+
+Defeito encontrado na validacao local:
+
+- O gate hospitalar em `src/lib/auth/access.ts` embutia `organizations!inner(id, status)` dentro de `organization_memberships` e filtrava `organization_memberships.organizations.status`.
+- A tabela `public.organizations` so libera `SELECT` para `platform_admin` ou para quem tem permissao de escopo organizacao `organization.read`.
+- Um usuario com vinculo hospitalar valido, mas sem papel organizacional, nao possui essa permissao; o RLS negava a linha de `organizations` e, por ser join interno, o vinculo hospitalar inteiro era descartado.
+- Resultado: usuario hospital-only autenticado, com profile ativo, organization membership ativo, hospital membership ativo e papel `hospital`/`member` ativo, era redirecionado indevidamente para `/acesso-negado`.
+
+Correcao aplicada, sem ampliar permissoes:
+
+- Removido apenas o embed `organizations!inner` da consulta hospitalar.
+- Removido apenas o filtro `organization_memberships.organizations.status`.
+- Preservada a ordem dos gates `platform`, `organization` e `hospital`.
+- Nenhuma politica RLS, grant, papel, permissao, migracao existente ou banco foi alterado.
+- A exigencia de organization ativa permanece garantida de forma transitiva pela funcao privada `current_user_has_hospital_permission`, que ja valida organization e hospital ativos ao autorizar a leitura de `hospitals`.
+
+Decisao registrada em `DECISIONS.md` como DEC-048.
+
+Investigacao com diagnostico temporario:
+
+- Foi adicionado diagnostico temporario e seguro em `src/lib/auth/access.ts`, registrando por gate apenas `code`, `message`, `details` e `hint` do erro, sem cookies, tokens, JWT, sessao, UUID, e-mail ou dados pessoais.
+- Apos a confirmacao da validacao manual, o diagnostico temporario foi removido integralmente e nao permaneceu no codigo final.
+
+Testes ajustados e adicionados:
+
+- `tests/unit/auth-access.test.ts` ajustado para o novo formato da consulta, com comentario esclarecendo que a suite cobre a logica de gates e nao o comportamento real do RLS.
+- `supabase/tests/004-sprint-03c-hospital-access.test.sql` adicionado como regressao para usuario hospital-only sem papel organizacional, validando acesso hospitalar liberado sob RLS como `authenticated`, trava de regressao do embed de organizations e bloqueio por organization suspensa.
+
+Higienizacao de residuos:
+
+- Removida a pasta local `supabase/snippets/`, gerada pelo Supabase Studio, contendo apenas uma consulta ad hoc com e-mails ficticios `@example.test`, sem senhas, tokens, chaves, JWT ou service role. A pasta nao estava versionada.
+
+Validacao manual end-to-end aprovada:
+
+- Usuario hospital-only autenticado por e-mail e senha.
+- URL final `/painel`, sem redirecionamento para `/acesso-negado` e sem tela de erro.
+- Bloqueio por profile inativo, bloqueio por vinculo invalido, acesso institucional valido e acesso hospitalar valido confirmados, todos apoiados por RLS no banco.
+
+Resultado tecnico confirmado da Sprint 03C:
+
+- Lint aprovado.
+- Typecheck aprovado.
+- 76 testes unitarios aprovados.
+- Build aprovado.
+- `db:lint` aprovado.
+- 73 verificacoes pgTAP aprovadas em banco local reconstruido por `db:reset`.
+- `git diff --check` sem erros de espaco em branco ou conflito.
+- Confirmado que as migracoes existentes nao foram alteradas.
+- Confirmado que `.env.local` permanece ignorado e que nenhum segredo, token, JWT, service role, senha ou URL com credencial foi versionado.
+- Confirmado que nenhum usuario ficticio ou dado de validacao permanente foi versionado; o `seed.sql` continua vazio e as fixtures pgTAP sao transacionais com `rollback`.
+- Vulnerabilidade moderada transitiva ja conhecida de PostCSS via Next.js permanece acompanhada em `KNOWN_ISSUES.md`; `npm audit fix --force` permanece proibido por causar downgrade forcado do Next.js.
+
 ## Decisoes aprovadas incorporadas
 
 - Nome canonico tecnico: `organization`.
@@ -1047,7 +1189,7 @@ A Sprint 03B permanece sem autenticar usuarios, sem proteger rotas e sem definir
 - Definir procedimento administrativo seguro para provisionar o primeiro `platform_admin`.
 - Definir persistencia e regras completas de convites institucionais.
 - Definir clientes Supabase SSR e browser na Sprint 03B.
-- Definir fluxo visual de login e logout na Sprint 03C.
+- Validar tecnicamente o fluxo visual de login e logout implementado na Sprint 03C.
 - Definir selecao e validacao de contexto ativo na Sprint 03D.
 - Definir formato minimo dos logs de auditoria funcional em etapa autorizada.
 
