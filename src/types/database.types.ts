@@ -9,7 +9,490 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      hospital_membership_roles: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          hospital_membership_id: string
+          id: string
+          revoked_at: string | null
+          role_id: number
+          role_scope: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          hospital_membership_id: string
+          id?: string
+          revoked_at?: string | null
+          role_id: number
+          role_scope?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          hospital_membership_id?: string
+          id?: string
+          revoked_at?: string | null
+          role_id?: number
+          role_scope?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_membership_roles_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_membership_roles_hospital_membership_id_fkey"
+            columns: ["hospital_membership_id"]
+            isOneToOne: false
+            referencedRelation: "hospital_memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_membership_roles_role_scope_fk"
+            columns: ["role_id", "role_scope"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id", "scope"]
+          },
+        ]
+      }
+      hospital_memberships: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          hospital_id: string
+          id: string
+          organization_id: string
+          organization_membership_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          hospital_id: string
+          id?: string
+          organization_id: string
+          organization_membership_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          hospital_id?: string
+          id?: string
+          organization_id?: string
+          organization_membership_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_memberships_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_memberships_hospital_organization_fk"
+            columns: ["hospital_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "hospital_memberships_org_membership_organization_fk"
+            columns: ["organization_membership_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "organization_memberships"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      hospitals: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          display_name: string
+          id: string
+          organization_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          id?: string
+          organization_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          id?: string
+          organization_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospitals_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospitals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_membership_roles: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          id: string
+          organization_membership_id: string
+          revoked_at: string | null
+          role_id: number
+          role_scope: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          organization_membership_id: string
+          revoked_at?: string | null
+          role_id: number
+          role_scope?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          organization_membership_id?: string
+          revoked_at?: string | null
+          role_id?: number
+          role_scope?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_membership_roles_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_membership_roles_organization_membership_id_fkey"
+            columns: ["organization_membership_id"]
+            isOneToOne: false
+            referencedRelation: "organization_memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_membership_roles_role_scope_fk"
+            columns: ["role_id", "role_scope"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id", "scope"]
+          },
+        ]
+      }
+      organization_memberships: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          organization_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_memberships_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_memberships_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_memberships_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          display_name: string
+          id: string
+          legal_name: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          id?: string
+          legal_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          id?: string
+          legal_name?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organizations_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permissions: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          id: number
+          scope: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          id?: never
+          scope: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          id?: never
+          scope?: string
+        }
+        Relationships: []
+      }
+      platform_role_assignments: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          id: string
+          revoked_at: string | null
+          role_id: number
+          role_scope: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          revoked_at?: string | null
+          role_id: number
+          role_scope?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          revoked_at?: string | null
+          role_id?: number
+          role_scope?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_role_assignments_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_role_assignments_role_scope_fk"
+            columns: ["role_id", "role_scope"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id", "scope"]
+          },
+          {
+            foreignKeyName: "platform_role_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      role_permissions: {
+        Row: {
+          created_at: string
+          permission_id: number
+          role_id: number
+          scope: string
+        }
+        Insert: {
+          created_at?: string
+          permission_id: number
+          role_id: number
+          scope: string
+        }
+        Update: {
+          created_at?: string
+          permission_id?: number
+          role_id?: number
+          scope?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_scope_fk"
+            columns: ["permission_id", "scope"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["id", "scope"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_scope_fk"
+            columns: ["role_id", "scope"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id", "scope"]
+          },
+        ]
+      }
+      roles: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          display_name: string
+          id: number
+          is_system: boolean
+          scope: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          display_name: string
+          id?: never
+          is_system?: boolean
+          scope: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          id?: never
+          is_system?: boolean
+          scope?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

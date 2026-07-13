@@ -119,6 +119,8 @@ src/
   components/
   config/
   lib/
+    auth/
+    supabase/
 tests/
   setup.ts
   unit/
@@ -129,18 +131,22 @@ public/
 
 ## Variaveis publicas
 
-O arquivo `.env.example` pode ser versionado e contem apenas variaveis publicas:
+O arquivo `.env.example` pode ser versionado e contem apenas placeholders seguros para variaveis publicas da integracao Supabase:
 
 ```env
-NEXT_PUBLIC_APP_NAME="Plataforma de Inteligencia Hospitalar"
-NEXT_PUBLIC_APP_ENV="development"
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=replace_with_local_publishable_key
 ```
 
-A aplicacao funciona sem `.env.local`, usando valores padrao seguros.
+Para desenvolvimento local, copie `.env.example` para `.env.local` apenas na sua maquina e preencha os valores manualmente. Nao copie valores reais para documentacao, mensagens, commits ou arquivos versionados.
 
-Nao versionar segredos, tokens, credenciais, URLs privadas, `.env.local` ou dados reais.
+Nunca versionar `.env.local`.
+
+Nunca usar secret key, service role, senha de banco, JWT secret, connection string ou chaves privadas com prefixo `NEXT_PUBLIC_`.
 
 Nao copiar chaves locais exibidas pela Supabase CLI para arquivos versionados.
+
+Lint, typecheck, testes unitarios e build nao exigem Docker ou Supabase ativos. A aplicacao atual tambem deve compilar sem `.env.local`, porque os clientes Supabase nao sao chamados durante a geracao estatica atual.
 
 ## Roteiro de validacao
 
@@ -167,14 +173,17 @@ Depois, validar:
 - A infraestrutura local do Supabase foi preparada e validada na Sprint 02.
 - O banco local foi iniciado apenas para desenvolvimento e testes, a baseline foi aplicada, o reset reconstruiu o estado limpo, os testes SQL foram executados e os tipos TypeScript foram gerados.
 - Os servicos locais foram desligados apos a validacao; para novos ciclos locais, o Docker Desktop deve estar aberto.
-- A aplicacao Next.js ainda nao esta conectada funcionalmente ao banco.
-- Autenticacao, instituicoes, isolamento, RLS de dominio e entidades institucionais serao implementados somente em sprints futuras, a partir da Sprint 03.
+- A Sprint 03A implementou o modelo institucional local, RLS e testes SQL.
+- A Sprint 03B implementou e validou tecnicamente a infraestrutura Supabase SSR com clientes tipados, cookies e Proxy de renovacao de sessao.
+- A Sprint 03C implementou e validou localmente login por e-mail e senha, logout, pagina de acesso negado, rota protegida `/painel`, redirecionamento seguro e validacao de acesso institucional basica no servidor.
+- O painel protegido valida usuario autenticado, perfil ativo e vinculo ou papel ativo, sem criar contexto institucional ativo.
+- Validacao end-to-end da Sprint 03C confirmou acesso valido para usuario institucional e para usuario hospitalar, incluindo usuario hospital-only sem papel organizacional, com bloqueio por perfil inativo ou vinculo invalido garantido por RLS.
+- A aplicacao Next.js ainda nao executa consultas clinicas, operacionais ou de dominio assistencial.
+- Contexto institucional ativo, selecao de instituicao e selecao de hospital permanecem reservados para a Sprint 03D ou fase futura autorizada.
 - Nao existe vinculo com projeto Supabase remoto nesta fase.
 - Nao ha API conectada ao banco.
-- Nao ha autenticacao conectada ao banco.
 - Nao ha APIs.
-- Nao ha autenticacao.
-- Nao ha usuarios ou permissoes implementados.
+- Nao ha usuarios criados pela aplicacao, cadastro publico, convite persistido, recuperacao de senha, confirmacao de e-mail funcional ou gestao visual de permissoes.
 - Nao ha pacientes, episodios, historico clinico, evolucoes, protocolos, exames, medicamentos, estoque ou leitos.
 - Nao ha dados reais.
 - Nao ha integracao com servicos externos.

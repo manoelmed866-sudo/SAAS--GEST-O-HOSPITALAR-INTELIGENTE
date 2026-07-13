@@ -173,3 +173,288 @@ O design system nao foi removido. Ele permanece como trilha transversal do produ
 A Supabase CLI sera usada como dependencia de desenvolvimento local do projeto, com versao estavel e exata, sem faixa flutuante e sem beta, canary ou preview. Os comandos serao expostos por scripts npm e tambem poderao ser executados manualmente com `npm exec supabase --`, sem exigir instalacao global da CLI.
 
 O Supabase local da Sprint 02 nao sera vinculado a projeto remoto. Nao sera executado `supabase login`, `supabase link` nem acesso a projeto remoto. Docker Desktop ou runtime Docker compativel e pre-requisito externo. Nenhum dado real sera utilizado e chaves locais geradas nao deverao ser copiadas para arquivos versionados.
+
+### DEC-028 - Sprint 03 com vinculos institucionais e hospitalares separados
+
+A Sprint 03 devera usar modelo hierarquico com `organization_memberships` e `hospital_memberships` separadas, mantendo dependencia explicita entre vinculo institucional e vinculo hospitalar.
+
+Motivo: melhorar clareza, integridade referencial, auditoria de RLS, testes pgTAP e suporte a usuarios com papeis diferentes em hospitais diferentes, reduzindo risco de privilegios excessivos.
+
+### DEC-029 - Papeis, permissoes e acesso clinico separados
+
+Papel, permissao, escopo, vinculo, acesso administrativo e acesso clinico serao tratados como conceitos diferentes.
+
+Motivo: impedir que um administrador tecnico ou institucional receba acesso clinico automatico e permitir autorizacao por menor privilegio.
+
+### DEC-030 - Cadastro publico bloqueado no fluxo inicial
+
+O fluxo inicial recomendado para a Sprint 03 sera login apenas para usuarios previamente cadastrados ou convidados institucionalmente, sem cadastro publico aberto.
+
+Motivo: plataforma hospitalar exige rastreabilidade, controle institucional e reducao de risco desde o primeiro acesso.
+
+### DEC-031 - Contexto ativo sempre validado no banco
+
+Organizacao ativa, hospital ativo, papel e permissoes efetivas nao serao considerados validos apenas por query string, cookie, `localStorage` ou identificador enviado pelo cliente.
+
+Motivo: impedir acesso cruzado entre instituicoes ou hospitais por manipulacao de identificadores.
+
+### DEC-032 - Organization como nome tecnico canonico
+
+`organization` sera o nome tecnico e canonico no banco e no codigo. Instituicao sera o termo principal na interface e na documentacao voltada ao usuario.
+
+`organization` podera representar hospital isolado, rede hospitalar, clinica, organizacao de saude, orgao publico ou grupo empresarial. `hospital` continuara sendo entidade subordinada a `organization`.
+
+Motivo: preservar uma nomenclatura tecnica estavel e flexivel, sem limitar o modelo a um unico tipo de instituicao.
+
+### DEC-033 - Cadastro publico bloqueado na primeira implementacao
+
+Nao havera fluxo publico de criacao de conta na primeira implementacao da Sprint 03. Usuarios somente poderao entrar por convite institucional ou provisionamento administrativo.
+
+Qualquer cadastro publico futuro dependera de decisao especifica e nova revisao de seguranca.
+
+Motivo: reduzir risco de acesso indevido em uma plataforma hospitalar multi-institucional.
+
+### DEC-034 - Convite institucional obrigatorio para usuarios comuns
+
+Convite institucional sera obrigatorio para usuarios comuns. O primeiro `organization_admin` sera vinculado pelo `platform_admin`.
+
+Convites deverao estar associados a e-mail, organization, hospital quando aplicavel, papel, remetente, data de criacao, data de expiracao e estado. Tambem deverao ser de uso unico, revogaveis, expiraveis e auditaveis.
+
+Convite aceito nao podera ser reutilizado e nenhum convite podera conceder papel superior ao do emissor.
+
+Motivo: garantir rastreabilidade e impedir criacao de acesso fora do escopo autorizado.
+
+### DEC-035 - Confirmacao de e-mail obrigatoria no fluxo de convite
+
+Confirmacao de e-mail sera obrigatoria no fluxo de convite. No ambiente local, o fluxo sera testado com o Mailpit fornecido pelo Supabase.
+
+Nenhuma confirmacao sera simulada com contas reais e nenhuma configuracao remota sera criada nesta fase.
+
+O `platform_admin` inicial podera ser provisionado por procedimento administrativo seguro e documentado.
+
+Motivo: confirmar posse do e-mail antes de liberar acesso e manter a validacao restrita ao ambiente local nesta etapa.
+
+### DEC-036 - Limites de criacao e gestao de hospitals
+
+Na primeira implementacao, `platform_admin` podera criar `organization`, criar `hospital`, vincular o primeiro `organization_admin` e ativar ou suspender `organization` por motivos tecnicos ou contratuais.
+
+`organization_admin` podera visualizar a propria organization, editar campos institucionais permitidos, visualizar hospitals da propria organization, editar campos operacionais permitidos, gerenciar vinculos dentro do proprio tenant e solicitar ou preparar criacao de novo hospital, sem persistir diretamente nesta fase.
+
+`organization_admin` nao podera criar diretamente hospital na primeira implementacao, mover hospital entre organizations, alterar identificadores estruturais, excluir fisicamente organization ou hospital, alterar situacao contratual da plataforma, conceder `platform_admin` ou acessar dados de outra organization.
+
+`hospital_admin` administrara somente o hospital ao qual esta vinculado, sem criar novos hospitals e sem alterar dados da organization fora do escopo hospitalar.
+
+Motivo: separar governanca da plataforma, administracao institucional e administracao hospitalar com menor privilegio.
+
+### DEC-037 - Desativacao logica para organizations, hospitals e vinculos
+
+Organizations, hospitals e vinculos institucionais deverao usar desativacao logica na primeira implementacao. Exclusao fisica nao sera usada como mecanismo operacional.
+
+Motivo: preservar rastreabilidade, historico administrativo e auditoria.
+
+### DEC-038 - Auditor inicial somente leitura
+
+O papel `auditor` sera inicialmente somente leitura dentro do escopo concedido.
+
+O auditor podera visualizar organization, hospital, vinculos, papeis, permissoes e logs de auditoria futuros. Nao podera criar ou alterar registros, gerenciar vinculos, alterar papeis ou acessar dados clinicos automaticamente.
+
+Qualquer acesso clinico futuro exigira permissao clinica separada, escopo institucional explicito, finalidade registrada, autoria, data e hora, e trilha de auditoria.
+
+Motivo: permitir revisao e controle sem transformar auditoria em permissao clinica implicita.
+
+### DEC-039 - Papeis minimos da primeira implementacao
+
+Os papeis minimos da primeira implementacao serao `platform_admin`, `organization_admin`, `hospital_admin`, `auditor` e `member`.
+
+Nao serao adotados ainda como papeis definitivos medico, enfermeiro, farmaceutico, profissional assistencial, gestor clinico ou operador de estoque. Esses papeis serao definidos junto aos modulos correspondentes.
+
+Motivo: manter a Sprint 03 focada em acesso institucional e evitar antecipar regras de modulos clinicos ou operacionais.
+
+### DEC-040 - Estados canonicos com text e CHECK constraints
+
+Na Sprint 03A, estados canonicos serao modelados como `text` com `CHECK constraints`, sem enums PostgreSQL.
+
+Estados aprovados:
+
+- `profiles.status`: `pending`, `active`, `suspended`, `deactivated`.
+- `organizations.status`: `active`, `suspended`, `inactive`.
+- `hospitals.status`: `active`, `suspended`, `inactive`.
+- `organization_memberships.status`: `pending`, `active`, `suspended`, `revoked`.
+- `hospital_memberships.status`: `pending`, `active`, `suspended`, `revoked`.
+- Atribuicoes de papel: `active`, `revoked`.
+
+Motivo: permitir evolucao controlada nesta fase sem acoplar o banco a enums prematuros.
+
+### DEC-041 - Estrutura relacional das memberships e atribuicoes de papeis
+
+A Sprint 03A implementara `organization_memberships`, `organization_membership_roles`, `hospital_memberships` e `hospital_membership_roles` como estruturas separadas.
+
+`hospital_memberships` devera validar por FKs compostas que o hospital e o organization membership pertencem a mesma organization.
+
+Motivo: impedir associacoes cruzadas entre tenants, permitir papeis diferentes por hospital e facilitar RLS auditavel.
+
+### DEC-042 - Papeis e permissoes relacionais
+
+Papeis, permissoes e seus mapeamentos serao relacionais por meio de `roles`, `permissions` e `role_permissions`.
+
+O mapeamento inicial de papeis e permissoes e dado estrutural da aplicacao e devera ser inserido por migracao, nao por `seed.sql`.
+
+Motivo: permitir auditoria, expansao por escopo e impedir mistura entre permissoes de plataforma, organization e hospital.
+
+### DEC-043 - Schema privado app_private para funcoes de autorizacao
+
+A Sprint 03A criara o schema privado `app_private` para funcoes tecnicas de `updated_at` e funcoes booleanas de autorizacao usadas por RLS.
+
+O schema nao devera ser exposto pela Data API e nao recebera tabelas nesta fase.
+
+Funcoes `security definer` deverao usar `search_path = ''`, nomes totalmente qualificados e retornar somente boolean quando forem funcoes de autorizacao.
+
+Motivo: reduzir recursao em politicas RLS sem expor registros institucionais.
+
+### DEC-044 - Sem trigger automatico em auth.users na Sprint 03A
+
+A Sprint 03A nao criara trigger automatico em `auth.users` e nao inserira `profile` automaticamente.
+
+A criacao de `profile` sera tratada posteriormente por fluxo administrativo ou fase autorizada.
+
+Motivo: evitar criacao inconsistente de usuarios e manter o provisionamento institucional sob controle.
+
+### DEC-045 - Platform admin nao sera semeado
+
+Nenhum `platform_admin`, usuario inicial, organization, hospital ou membership sera inserido pela Sprint 03A.
+
+O provisionamento inicial do `platform_admin` sera definido posteriormente por procedimento administrativo seguro e documentado.
+
+Motivo: impedir credenciais, usuarios ou dados institucionais permanentes dentro de migracoes estruturais.
+
+### DEC-046 - Supabase SSR com chave publicavel e Proxy sem autorizacao na Sprint 03B
+
+A Sprint 03B usara `@supabase/ssr` e `@supabase/supabase-js` como base oficial para clientes Supabase no navegador e no servidor.
+
+Serao usados clientes separados:
+
+- `createBrowserClient` para o navegador;
+- `createServerClient` para servidor e Proxy.
+
+A aplicacao usara somente `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` como variaveis publicas da integracao Supabase nesta fase.
+
+Service role, secret key, senha de banco, JWT secret, connection strings e chaves privadas nao poderao ser usadas no cliente nem receber prefixo `NEXT_PUBLIC_`.
+
+Cookies serao a base da integracao SSR. O Proxy do Next.js sera implementado em `src/proxy.ts`, nao em `middleware.ts`, e ficara restrito a renovacao segura de sessao.
+
+O Proxy devera chamar `getClaims()` para renovacao e validacao criptografica possivel do token, sem usar `getSession()` como base de autorizacao no servidor.
+
+Durante a Sprint 03B, o Proxy nao redirecionara usuarios, nao classificara rotas como publicas ou protegidas, nao consultara `profiles`, memberships ou tabelas institucionais e nao decidira autorizacao.
+
+A validacao de ambiente sera preguicosa: variaveis publicas do Supabase serao lidas apenas quando os clientes forem criados ou quando o Proxy for executado. Isso preserva lint, typecheck, testes e build sem `.env.local`, desde que a aplicacao atual nao chame Supabase durante geracao estatica.
+
+Motivo: preparar a fundacao SSR segura para autenticacao futura sem antecipar login, logout, protecao de rotas, contexto ativo ou autorizacao institucional.
+
+### DEC-047 - Sprint 03C com login protegido sem contexto ativo
+
+A Sprint 03C implementara login, logout, pagina de acesso negado, rota protegida `/painel`, redirecionamento seguro e validacao de usuario no servidor.
+
+O acesso inicial ao painel exigira usuario autenticado, perfil ativo e pelo menos um papel ou vinculo ativo de plataforma, instituicao ou hospital. Essa validacao nao seleciona instituicao, nao seleciona hospital, nao cria contexto institucional ativo e nao substitui as politicas RLS do banco.
+
+Cadastro publico, convite persistido, recuperacao de senha, confirmacao de e-mail funcional, MFA, criacao automatica de perfil, trigger em `auth.users`, novas tabelas, migracoes e contexto ativo ficam fora da Sprint 03C.
+
+Motivo: liberar a primeira porta autenticada da aplicacao com menor privilegio e mensagens seguras, sem antecipar a Sprint 03D nem criar atalhos de autorizacao.
+
+### DEC-048 - Gate hospitalar nao depende de leitura de organizations
+
+A verificacao de acesso hospitalar em `src/lib/auth/access.ts` nao devera exigir leitura direta da tabela `organizations`. A consulta do gate hospitalar consulta apenas `hospital_memberships`, `hospitals`, `organization_memberships` do proprio usuario e `hospital_membership_roles` com seus `roles`.
+
+A exigencia de organization ativa continua garantida de forma transitiva pela funcao privada `current_user_has_hospital_permission`, que valida organization e hospital ativos ao autorizar a leitura de `hospitals` por RLS.
+
+Motivo: usuario com vinculo hospitalar valido, mas sem papel de escopo organizacao, nao possui permissao de leitura em `organizations`, entao exigir essa leitura em join interno nega indevidamente o acesso. A decisao preserva menor privilegio e evita ampliar permissoes ou afrouxar RLS apenas para satisfazer a consulta de aplicacao. Um teste pgTAP de regressao para usuario hospital-only protege essa decisao.
+
+### DEC-049 - Inventario de acessos por RLS sem migration na Sprint 03D1
+
+O inventario de contexto institucional da Sprint 03D1, em `src/lib/auth/context.ts`, listara organizations e hospitals ativos consultando as proprias tabelas com filtro `status = 'active'` e delegando a autorizacao definitiva ao RLS da Sprint 03A, sem reconstruir joins de permissao na aplicacao e sem nova migration (Opcao A).
+
+O inventario nao resolve papeis ativos, que ficam reservados para a revalidacao do contexto selecionado nas etapas 03D3 e 03D4. Um usuario hospital-only sem papel de escopo organizacao podera receber a lista de organizations vazia e a lista de hospitals preenchida, porque o RLS nao lhe concede leitura em `organizations`, mas concede leitura no proprio hospital.
+
+A funcao retorna um resultado discriminado `success` ou `error`. Em erro de qualquer consulta, retorna `error` sem dados parciais e sem converter erro em inventario vazio, preservando o comportamento fail-closed. Usa apenas o cliente Supabase server-side autenticado, sem service role.
+
+Motivo: manter a separacao entre autenticacao, autorizacao e contexto ativo, tratando o RLS como fonte unica de verdade da autorizacao, sem ampliar grants ou politicas sem necessidade comprovada e sem exibir instituicoes nao autorizadas. Exibir o nome da organization para usuario hospital-only, que exigiria nova politica de leitura, fica adiado para uma decisao futura especifica caso a necessidade se confirme.
+
+### DEC-050 - Contexto institucional ativo como cookie ponteiro revalidado sob RLS na Sprint 03D3
+
+O contexto institucional ativo da Sprint 03D3 sera persistido no cookie `ghi_active_context`, com payload minimo `organizationId`, `hospitalId` e `v: 1`, sem papel, permissao, nome institucional ou dado clinico. O cookie sera `httpOnly`, `SameSite=Lax`, `Secure` apenas em producao, com `path` `/painel` e `maxAge` de 12 horas (`60 * 60 * 12`), alinhado ao plantao de urgencia e emergencia. A versao `v` sera acrescentada internamente pelo modulo, nunca pelo chamador.
+
+O cookie sera apenas um ponteiro da selecao atual e nunca a fonte de autorizacao. O parsing usara Zod strict, aceitando somente UUIDs validos e `v` igual a 1, rejeitando JSON invalido e campos extras; a escrita tambem validara a selecao antes de gravar e lancara erro generico, sem expor IDs ou conteudo, quando a entrada for invalida. O conteudo do cookie, UUIDs, tokens, sessao e erros sensiveis nunca serao registrados em log.
+
+Todo acesso que exija contexto ativo revalidara a selecao no servidor sob RLS, consultando `hospitals` com filtros de `id`, `organization_id` e `status = 'active'` via `maybeSingle()`, usando somente o cliente Supabase server-side autenticado, sem service role. A leitura de `hospitals` ja exige, de forma transitiva pelo RLS da Sprint 03A, organization ativa, hospital ativo, vinculo e papel ativos e acesso real; por isso a validacao confia no RLS como barreira definitiva e nao reconstroi joins de autorizacao na aplicacao.
+
+O resultado sera discriminado em quatro estados que nunca se colapsam e nunca devolvem contexto parcial: `active`, `absent`, `invalid` e `error`. Erro tecnico permanece `error` e nao apaga automaticamente o contexto; contexto ausente e distinto de contexto invalido; contexto invalido nao e tratado como erro tecnico. O `logoutAction` limpa o cookie sempre, no inicio da acao, antes de qualquer redirect e antes de qualquer erro do `signOut`, mesmo sem usuario autenticado.
+
+Um teste pgTAP de contexto ativo confirmou sob RLS que papel hospitalar revogado com vinculo ativo e sem papel organizacional retorna 0 linhas, porque `current_user_has_hospital_permission` exige papel ativo e nao revogado. Nenhuma correcao em TypeScript, migration ou RLS foi necessaria.
+
+Motivo: manter a separacao entre autenticacao, autorizacao e contexto ativo, garantindo que nenhum contexto valha apenas por estar em cookie e que a revalidacao no banco bloqueie vinculo revogado, hospital ou organizacao suspensos e acesso cruzado, sem ampliar RLS, grants, roles ou permissions e sem criar UI, seletor ou migration nesta etapa.
+
+### DEC-051 - Seletor visual de contexto institucional na Sprint 03D2
+
+A selecao de contexto institucional tera uma rota protegida `/painel/selecionar-contexto`, dentro da area do painel, com ponto de entrada por link simples "Selecionar hospital" no painel. A rota e um Server Component `force-dynamic` protegido pelo Proxy existente e recebe o cookie no `path` `/painel`.
+
+O formulario sera um Client Component com `useActionState`, apresentando os hospitais autorizados em um radiogroup. Nao havera selecao automatica, mesmo com um unico hospital: a confirmacao explicita por botao e obrigatoria. O caso hospital-only e suportado: com `organizations` vazio o hospital continua selecionavel, sem inventar nome de organizacao e sem exibir nenhum UUID como texto.
+
+A pagina consome `getAuthorizedContextInventory()` sob RLS, na ordem `requirePortalAccess()` e depois inventario, e renderiza estados distintos: selecao, inventario vazio e falha tecnica, tratando inventario vazio como diferente de erro tecnico.
+
+A Server Action `selectActiveContextAction` sera co-localizada na rota, validara `organizationId:hospitalId` com Zod e revalidara obrigatoriamente por `validateActiveContext`. O cookie so sera gravado quando o resultado for `active`, usando os IDs vindos do banco, seguido de `redirect("/painel")` fixo. Os estados `invalid` e `error` sao separados, com mensagens genericas, e nenhum destino de redirect vindo do navegador e aceito.
+
+Nenhuma migration, RLS, grant, role ou permission foi criada ou alterada. Nao ha dashboard contextual nesta sprint: a exibicao do hospital ativo no painel e a revisao do texto antigo do painel sobre ainda nao existir contexto ativo ficam para a Sprint 03D4.
+
+Validacao real registrada: login real aprovado; rota protegida aprovada; dois hospitais autorizados visiveis; hospital de outro tenant oculto; caso hospital-only funcionando; selecao repetida entre dois hospitais aprovada; logout e novo login aprovados; troca de contexto aprovada. A validacao usou um fixture ficticio efemero em ambiente local, removido integralmente ao final.
+
+Motivo: dar ao usuario autenticado uma forma segura de escolher o hospital de trabalho, mantendo a autorizacao no RLS e no servidor, sem confiar no inventario renderizado, sem ampliar permissoes e sem antecipar o dashboard contextual da Sprint 03D4.
+
+### DEC-052 - Painel exibe contexto hospitalar ativo revalidado sob RLS na Sprint 03D4
+
+O painel `/painel` passa a resolver o contexto institucional ativo apos o gate de acesso: a ordem obrigatoria e `requirePortalAccess()` e somente entao `resolveActiveContext()`. O painel nao consulta o Supabase diretamente, nao usa `createClient` nem service role, nao le cookies diretamente, nao redireciona e nunca exibe UUIDs.
+
+`resolveActiveContext` permanece com os quatro estados discriminados `active`, `absent`, `invalid` e `error`, herdados da Sprint 03D3. O tipo `ActiveContext` foi enriquecido com `hospitalCode` e `hospitalDisplayName`, alem de `organizationId` e `hospitalId`. Nome e codigo do hospital vem exclusivamente da linha de `hospitals` revalidada sob RLS, nunca do cookie e nunca de fallback com IDs.
+
+`validateActiveContext` continua usando uma unica consulta a tabela `hospitals`, agora selecionando `id, organization_id, code, display_name`, com os mesmos filtros `id`, `organization_id` e `status = 'active'` via `maybeSingle()` e sob o cliente Supabase server-side autenticado. Nenhuma segunda consulta, join de autorizacao ou leitura de `organizations`/memberships foi adicionada; o RLS da Sprint 03A permanece a barreira definitiva.
+
+O cookie `ghi_active_context` continua contendo somente `organizationId`, `hospitalId` e `v`; nome e codigo nunca sao persistidos no cookie.
+
+Comportamento por estado no painel:
+
+- `active`: exibe "Plantao ativo", o nome e o codigo do hospital e o link "Trocar hospital".
+- `absent`: tratado inline, sem redirect automatico, com titulo "Selecione um hospital" e link "Selecionar hospital".
+- `invalid`: tratado inline, orientando nova selecao, sem ser confundido com erro tecnico.
+- `error`: permanece distinto, com mensagem generica, sem apagar o cookie e oferecendo "Tentar novamente".
+- Logout permanece disponivel em todos os estados.
+
+Nenhuma organizacao e exigida ou exibida para usuario hospital-only; nenhum UUID e exibido. Nenhuma migration, RLS, grant, role, permission ou Proxy foi alterada. Nenhum modulo clinico, paciente, protocolo, medicamento, estoque ou dado assistencial foi criado. Os estados `invalid` e `error` foram validados por testes automatizados, nao forcados manualmente em execucao real.
+
+Validacao E2E real registrada, com fixture ficticio efemero em ambiente local removido integralmente ao final: login aprovado; estado `absent` aprovado; Hospital Alfa E2E exibido como ativo com nome e codigo corretos; hospital de outro tenant (Hospital Gama E2E) oculto; troca de Alfa para Beta aprovada, com Alfa deixando de permanecer como ativo apos a troca; logout aprovado; novo login retornou ao estado `absent`.
+
+Motivo: entregar o dashboard contextual minimo que faltava na serie 03D, exibindo o hospital de trabalho ao usuario autenticado com nome e codigo confiaveis vindos do banco sob RLS, sem transformar o cookie em fonte de verdade, sem ampliar autorizacao e sem antecipar modulos clinicos.
+
+### DEC-053 - Sprint 03D5 como checkpoint de encerramento tecnico
+
+A Sprint 03D5 nao introduz nova funcionalidade. Nao existia escopo oficial previamente definido para a 03D5 na documentacao: ela era um slot remanescente da numeracao emergente das subfases da Sprint 03D. Os criterios de aceite da Sprint 03D ja haviam sido cumpridos pelas etapas 03D1 (inventario autorizado), 03D2 (seletor visual de contexto), 03D3 (cookie e revalidacao de contexto) e 03D4 (painel contextual com hospital ativo). Portanto, a 03D5 e redefinida como checkpoint que consolida e encerra tecnicamente a Sprint 03, com escopo exclusivamente documental.
+
+Nesta etapa:
+
+- Nao sera criado `src/lib/auth/capabilities.ts`.
+- Nao havera nova migration.
+- Nao havera alteracao de RLS, grants, roles, permissions ou cookie.
+- Nao havera alteracao de codigo, testes, Proxy ou paginas.
+
+A resolucao de capacidades efetivas do usuario sera planejada e implementada na Sprint 04, e nao aqui. Essa resolucao devera considerar a uniao dos tres escopos de autorizacao, nao apenas o escopo hospitalar:
+
+- plataforma (`platform_role_assignments`);
+- organizacao (`organization_membership_roles`);
+- hospital (`hospital_membership_roles`).
+
+Consultar somente `hospital_membership_roles` seria incompleto, pois ignoraria permissoes efetivas provenientes dos escopos de plataforma e organizacao; por isso a resolucao correta e maior e mais delicada do que caberia nesta etapa de encerramento.
+
+Principios preservados para a Sprint 04:
+
+- Nenhuma permissao ou capacidade sera persistida em cookie; o cookie `ghi_active_context` permanece um ponteiro minimo `{organizationId, hospitalId, v}`.
+- O RLS continuara sendo a barreira final de autorizacao.
+- A interface nunca sera a unica fonte de autorizacao; capacidades serao sempre revalidadas no servidor sob RLS.
+
+Motivo: encerrar formalmente a Sprint 03 com honestidade de escopo, evitando implementar uma camada de autorizacao granular incompleta sob pressao de numeracao, e transferindo a resolucao de capacidades efetivas para a sprint correta (Sprint 04), onde a uniao dos tres escopos podera ser modelada, testada e documentada com o cuidado necessario.
