@@ -12,7 +12,7 @@ As sprints constroem progressivamente a Visao Funcional Completa. A Primeira Ver
 | Sprint 01 | Fundacao visual e tecnica inicial | Concluída |
 | Sprint 02 | Fundacao local do banco e migracoes | Concluída |
 | Sprint 03 | Autenticacao, contexto institucional e extensao visual autenticada | Concluída |
-| Sprint 04 | Administracao, governanca e design system autenticado inicial | Próxima |
+| Sprint 04 | Administracao, governanca e design system autenticado inicial | Em andamento |
 | Sprint 05 | Cadastro institucional hospitalar | Pendente |
 | Sprint 06 | Rede de referencia e comunicacao institucional | Pendente |
 | Sprint 07 | Episodios assistenciais | Pendente |
@@ -123,6 +123,16 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
 - Resultado consolidado da Sprint 03 no encerramento: 176 testes unitarios e 94 verificacoes pgTAP aprovados; lint, typecheck, build e `db:lint` aprovados; validacoes E2E das etapas 03D2 e 03D4 aprovadas; nenhum segredo versionado; nenhuma pendencia de fixture.
 - Pendencias transferidas para a Sprint 04: resolucao de capacidades efetivas com uniao dos escopos de plataforma, organizacao e hospital; capacidades semanticas; gestao de usuarios e vinculos; gestao de papeis e permissoes; convites; interfaces administrativas; workspaces por perfil; design system autenticado; gates de modulos por capacidade.
 - Sprint 04 e a proxima etapa e ainda nao foi iniciada; nenhuma capacidade efetiva foi implementada na Sprint 03.
+
+## Observacao sobre Sprint 04
+
+- Sprint 04 EM ANDAMENTO na branch `sprint/04-administracao-governanca` (criada a partir do merge da Sprint 03 na main).
+- Sprint 04A CONCLUIDA: contrato SQL de capacidades efetivas do hospital ativo e consumidor server-side TypeScript.
+  - Funcao `public.get_effective_hospital_capabilities(uuid)`, `SECURITY INVOKER`, une os tres escopos (plataforma, organizacao e hospital) por OR monotonica e devolve cinco booleanos semanticos: `canReadHospital`, `canReadMemberships`, `canManageMemberships`, `canReadAudit`, `canSwitchContext`.
+  - Resolver `resolveActiveHospitalCapabilities()` sem argumentos; o hospital vem apenas do contexto ativo revalidado; validacao Zod estrita com array de tamanho 1; fail-closed em resposta malformada; nenhum codigo cru de permissao exposto. Tipos Supabase regenerados apenas para a nova funcao.
+  - Capacidades efetivas disponiveis SOMENTE no servidor; nenhum painel ou interface consome as capacidades ainda; o cookie permanece minimo. Decisao registrada como DEC-054.
+- Sprint 04B ainda nao iniciada. Proximas subfases sugeridas (nao iniciadas): 04B consumo das capacidades e gates server-side; 04C administracao de usuarios e vinculos; 04D gestao de papeis e permissoes; 04E design system autenticado e workspaces iniciais.
+- Resultado validado da Sprint 04A: 227 testes unitarios e 115 verificacoes pgTAP aprovados; lint, typecheck, build e `db:lint` aprovados. Nenhuma policy, RLS ou grant de tabela foi alterado; nenhuma interface ou CRUD implementado; nenhum modulo clinico criado.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 

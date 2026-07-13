@@ -498,7 +498,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_effective_hospital_capabilities: {
+        Args: { target_hospital_id: string }
+        Returns: {
+          can_manage_memberships: boolean
+          can_read_audit: boolean
+          can_read_hospital: boolean
+          can_read_memberships: boolean
+          can_switch_context: boolean
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

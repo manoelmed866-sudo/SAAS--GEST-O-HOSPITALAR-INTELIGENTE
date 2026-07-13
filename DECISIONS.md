@@ -458,3 +458,32 @@ Principios preservados para a Sprint 04:
 - A interface nunca sera a unica fonte de autorizacao; capacidades serao sempre revalidadas no servidor sob RLS.
 
 Motivo: encerrar formalmente a Sprint 03 com honestidade de escopo, evitando implementar uma camada de autorizacao granular incompleta sob pressao de numeracao, e transferindo a resolucao de capacidades efetivas para a sprint correta (Sprint 04), onde a uniao dos tres escopos podera ser modelada, testada e documentada com o cuidado necessario.
+
+### DEC-054 - Capacidades efetivas do hospital ativo sob SECURITY INVOKER
+
+A Sprint 04A introduz uma camada de capacidades semanticas resolvida no servidor, a partir do modelo relacional de papeis e permissoes da Sprint 03A. A resolucao considera os tres escopos de autorizacao, relativamente ao hospital ativo: plataforma (`platform_role_assignments`), organizacao (`organization_membership_roles`, na organizacao proprietaria do hospital) e hospital (`hospital_membership_roles`, no hospital alvo).
+
+Composicao e semantica:
+
+- A combinacao entre escopos e monotonica por OR (uniao): uma capacidade e verdadeira quando qualquer escopo qualificante possui a permissao correspondente. Nao existe negacao nem precedencia nesta etapa; duplicidade entre escopos nao altera o resultado.
+- A capacidade so nasce de permissao explicitamente atribuida por `role_permissions`. Nomes de papeis nao concedem privilegios por si.
+- `platform_admin` NAO recebe automaticamente todas as capacidades: recebe apenas as derivadas de permissoes de escopo plataforma explicitamente atribuidas (hoje, `hospitals.read` mapeia para `canReadHospital`).
+
+Contrato tecnico:
+
+- Funcao `public.get_effective_hospital_capabilities(target_hospital_id uuid)`, `language sql`, `stable`, **SECURITY INVOKER**, `set search_path = ''`, retornando exatamente cinco booleanos semanticos e sempre uma unica linha: `can_read_hospital`, `can_read_memberships`, `can_manage_memberships`, `can_read_audit`, `can_switch_context`.
+- Por ser SECURITY INVOKER, o RLS da Sprint 03A permanece aplicavel a cada tabela lida; nao foi usado `service_role`. `EXECUTE` e revogado de PUBLIC e de `anon` e concedido apenas a `authenticated`. Nenhuma policy, RLS ou grant de tabela foi alterado; nenhuma role ou permission semeada foi modificada.
+- No escopo hospital-only, o gate de organizacao ativa e garantido de forma transitiva pela visibilidade do hospital sob RLS (a policy de `public.hospitals` delega a `app_private.current_user_has_hospital_permission`, que exige organizacao ativa), evitando que a funcao precise ler `public.organizations` para esse caso.
+
+Consumidor server-side:
+
+- `resolveActiveHospitalCapabilities()` (`src/lib/auth/capabilities.ts`) nao recebe argumentos. O hospital alvo vem exclusivamente do contexto ativo revalidado por `resolveActiveContext()`; envia a RPC somente `target_hospital_id`, nunca `organizationId`, e devolve o mesmo `ActiveContext` revalidado.
+- A resposta da RPC e validada com Zod estrito (`.strict()`, exatamente cinco booleanos) e exige array de tamanho exatamente 1. Retorno malformado (erro, ausencia de linha, mais de uma linha, campo ausente/nulo/nao booleano ou propriedade inesperada) falha fechado como `{ status: "error" }`, sem capacidade parcial nem fallback permissivo.
+- Nenhum codigo cru de permissao, papel ou scope e exposto ao consumidor: o TypeScript recebe somente cinco booleanos semanticos (`canReadHospital`, `canReadMemberships`, `canManageMemberships`, `canReadAudit`, `canSwitchContext`). Nenhuma permissao, papel ou capacidade e armazenada no cookie, que permanece o ponteiro minimo `{organizationId, hospitalId, v}`.
+
+Limite consciente:
+
+- O consumo visual das capacidades (painel, gates de UI) foi adiado; o painel ainda nao consome capacidades nesta etapa.
+- SECURITY DEFINER nao foi adotado. Uma funcao `security definer` (que permitiria um gate de organizacao ativa explicito e uniforme nos tres escopos) so podera ser avaliada futuramente mediante necessidade comprovada e nova decisao.
+
+Motivo: entregar a fundacao de autorizacao granular por capacidade de forma segura e testavel, mantendo o RLS como barreira final, sem expor o modelo interno de permissoes, sem confiar na interface e sem ampliar privilegios, preparando os gates de modulo e a administracao das proximas subfases da Sprint 04.

@@ -6,6 +6,20 @@ Todas as mudancas relevantes do projeto devem ser registradas aqui.
 
 ## 2026-07-13
 
+### Checkpoint - Sprint 04A - Capacidades efetivas do hospital ativo
+
+- Sprint 04A concluida na branch `sprint/04-administracao-governanca`: contrato SQL de capacidades efetivas e consumidor server-side, sem interface e sem CRUD.
+- Criada a funcao RPC `public.get_effective_hospital_capabilities(target_hospital_id uuid)`, `language sql`, `stable`, **SECURITY INVOKER**, `set search_path = ''`, que retorna exatamente cinco booleanos semanticos e sempre uma unica linha: `can_read_hospital`, `can_read_memberships`, `can_manage_memberships`, `can_read_audit`, `can_switch_context`.
+- A resolucao une os tres escopos de autorizacao (plataforma, organizacao proprietaria do hospital e hospital alvo) por OR monotonica, sem negacao nem precedencia; a capacidade so nasce de permissao explicitamente atribuida e `platform_admin` nao recebe capacidades implicitas.
+- Por ser SECURITY INVOKER, o RLS da Sprint 03A permanece aplicavel; nao foi usado `service_role`; `EXECUTE` revogado de PUBLIC e `anon` e concedido apenas a `authenticated`. Nenhuma policy, RLS ou grant de tabela foi alterado; nenhuma role ou permission semeada foi modificada.
+- Criado o resolver server-side `resolveActiveHospitalCapabilities()` em `src/lib/auth/capabilities.ts`, sem argumentos: o hospital alvo vem exclusivamente do contexto ativo revalidado por `resolveActiveContext()`; envia a RPC somente `target_hospital_id` (nunca `organizationId`) e devolve o mesmo `ActiveContext`.
+- A resposta da RPC e validada com Zod estrito (cinco booleanos, array de tamanho exatamente 1); retorno malformado falha fechado como `{ status: "error" }`, sem capacidade parcial; o TypeScript recebe apenas cinco booleanos semanticos, sem expor codigo cru de permissao, papel ou scope.
+- Regenerado `src/types/database.types.ts` pelo comando oficial `npm run db:types`, adicionando somente a nova funcao ao bloco `Functions` (Args `target_hospital_id: string`, Returns array de cinco booleanos).
+- Adicionados testes: `supabase/tests/007-sprint-04a-effective-capabilities.test.sql` (21 pgTAP sob RLS, cobrindo os tres escopos, revogacao, suspensao, inatividade e isolamento entre hospitais), `tests/unit/auth-capabilities.test.ts` (19 testes de orquestracao, mapeamento e fail-closed) e `tests/unit/sprint-04a-static-security.test.ts` (32 testes estaticos de arquitetura e seguranca).
+- Nenhuma interface, painel ou CRUD foi implementado; o cookie permanece minimo; o consumo visual das capacidades foi adiado. SECURITY DEFINER nao foi adotado.
+- Aprovados lint, typecheck, 227 testes unitarios, build, `db:lint` e 115 verificacoes pgTAP.
+- Decisao registrada em `DECISIONS.md` como DEC-054.
+
 ### Encerramento tecnico - Sprint 03 - Checkpoint 03D5
 
 - Sprint 03 concluida. Consolidados os checkpoints 03A (modelo institucional e RLS), 03B (clientes Supabase SSR e sessao), 03C (login, logout, rotas protegidas e acesso negado), 03D1 (inventario autorizado), 03D2 (seletor visual de contexto), 03D3 (cookie minimo e revalidacao de contexto), 03D4 (painel contextual com hospital ativo) e 03D5 (checkpoint de encerramento tecnico).
