@@ -12,7 +12,7 @@ Sprint 03B: Concluida tecnicamente e versionada.
 
 Sprint 03C: Concluida e validada localmente.
 
-Sprint 03D: Em execucao. Sprint 03D1, Sprint 03D3 e Sprint 03D2 concluidas como checkpoints; Sprint 03D4 e 03D5 nao iniciadas.
+Sprint 03D: Em execucao. Sprint 03D1, Sprint 03D3, Sprint 03D2 e Sprint 03D4 concluidas como checkpoints; Sprint 03D5 nao iniciada.
 
 Este documento registra o planejamento documental da Sprint 03, as implementacoes controladas das Sprints 03A, 03B e 03C e seus limites. A Sprint 03C criou fluxo visual de login/logout, protecao de rota e acesso negado, sem implementar Sprint 03D, APIs de negocio, novas tabelas, migracoes, usuarios, dados clinicos, dados reais ou Supabase remoto.
 
@@ -1321,6 +1321,67 @@ Resultado tecnico confirmado da Sprint 03D2:
 - `git diff --check` sem erros de espaco em branco ou conflito.
 - Confirmado que nenhuma migration, RLS, grant, papel ou permissao foi alterada e que Proxy e painel (exceto o link de entrada) permaneceram intactos.
 - Confirmado que `.env.local` permanece ignorado e que nenhuma chave, token, JWT, service role, senha ou UUID foi versionado; o fixture de validacao foi ficticio, local e removido ao final.
+
+### Implementacao e validacao da Sprint 03D4 - Painel exibe contexto hospitalar ativo
+
+Estado: Sprint 03D4 concluida como checkpoint independente. Sprint 03D5 permanece nao iniciada.
+
+Escopo entregue:
+
+- O painel `/painel` passou a exibir o contexto institucional ativo, encerrando a pendencia registrada nas Sprints 03D2 e 03D3 sobre o painel ainda nao mostrar o hospital ativo e ainda conter texto antigo sobre nao existir contexto ativo.
+- A resolucao do contexto ocorre apos o gate de acesso, na ordem obrigatoria `requirePortalAccess()` e somente entao `resolveActiveContext()`.
+- Nenhum dashboard clinico, modulo assistencial ou nova capacidade alem da exibicao do hospital ativo foi criado.
+
+Arquivos alterados:
+
+- `src/app/(protected)/painel/page.tsx` (renderizacao dos quatro estados e correcao do texto antigo);
+- `src/lib/auth/context.ts` (`ActiveContext` enriquecido e consulta de `validateActiveContext` estendida);
+- `tests/unit/auth-context-validate.test.ts` (novo contrato de contexto);
+- `tests/unit/auth-pages.test.tsx` (renderizacao dos estados do painel).
+
+Arquivo criado:
+
+- `tests/unit/sprint-03d4-static-security.test.ts` (revisao estatica de seguranca consolidada, com escopo por funcao).
+
+Contexto ativo e consulta:
+
+- O tipo `ActiveContext` foi enriquecido com `hospitalCode` e `hospitalDisplayName`, alem de `organizationId` e `hospitalId`.
+- `validateActiveContext` continua com uma unica consulta a `hospitals`, agora com `select("id, organization_id, code, display_name")`, mantendo os filtros `id`, `organization_id` e `status = 'active'` via `maybeSingle()` e o cliente Supabase server-side autenticado, sem service role.
+- Nome e codigo vem exclusivamente da linha retornada pelo banco sob RLS, nunca do cookie e nunca de fallback com IDs. Nenhuma segunda consulta, join de autorizacao ou leitura de `organizations`/memberships foi adicionada; o RLS da Sprint 03A permanece a barreira definitiva.
+- O cookie `ghi_active_context` continua contendo somente `organizationId`, `hospitalId` e `v`; nome e codigo nunca sao persistidos no cookie.
+
+Estados renderizados no painel:
+
+- `active`: exibe "Plantao ativo", o nome e o codigo do hospital e o link "Trocar hospital".
+- `absent`: tratado inline, sem redirect automatico, com titulo "Selecione um hospital" e link "Selecionar hospital".
+- `invalid`: tratado inline, orientando nova selecao, sem ser confundido com erro tecnico.
+- `error`: permanece distinto, com mensagem generica, sem apagar o cookie e oferecendo "Tentar novamente".
+- Logout permanece disponivel em todos os estados; nenhum UUID e exibido; nenhuma organizacao e exigida ou exibida para usuario hospital-only.
+
+Seguranca:
+
+- O painel nao consulta o Supabase diretamente, nao usa `createClient` nem service role, nao le cookies diretamente, nao usa `fetch`, nao redireciona e nao usa `localStorage`/`sessionStorage`.
+- O teste `sprint-03d4-static-security.test.ts` protege, por escopo de funcao para evitar falsos positivos: o painel consumindo gate e contexto pelas funcoes corretas e livre de Supabase/cookie/storage/fetch/redirect/UUID/texto antigo/dominio clinico; `validateActiveContext` com consulta unica a `hospitals`, campos esperados e mapeamento de nome/codigo apenas da linha do banco; o payload do cookie restrito a `organizationId`, `hospitalId` e `v`; e a acao de selecao revalidando por `validateActiveContext`, gravando so no caminho `active` e redirecionando apenas para `/painel`.
+- Nenhuma migration, RLS, grant, role, permission ou Proxy foi alterada. Nenhum modulo clinico, paciente, protocolo, medicamento, estoque ou dado assistencial foi criado.
+
+Validacao E2E real aprovada:
+
+- Validacao manual end-to-end em ambiente local com fixture ficticio efemero, removido integralmente ao final.
+- Login aprovado; estado `absent` aprovado; Hospital Alfa E2E exibido como ativo com nome e codigo corretos; hospital de outro tenant (Hospital Gama E2E) oculto; troca de Alfa para Beta aprovada, com Alfa deixando de permanecer como ativo apos a troca; logout aprovado; novo login retornou ao estado `absent`.
+- Os estados `invalid` e `error` foram validados por testes automatizados, nao forcados manualmente em execucao real.
+
+Resultado tecnico confirmado da Sprint 03D4:
+
+- Lint aprovado.
+- Typecheck aprovado.
+- 176 testes unitarios aprovados.
+- Build aprovado.
+- `db:lint` aprovado.
+- 94 verificacoes pgTAP aprovadas.
+- `git diff --check` sem erros de espaco em branco ou conflito.
+- Confirmado que nenhuma migration, RLS, grant, papel, permissao ou Proxy foi alterada, que nenhum `createClient` direto foi adicionado ao painel e que nenhuma segunda consulta foi adicionada a `validateActiveContext`.
+- Confirmado que `.env.local` permanece ignorado e que nenhuma chave, token, JWT, service role, senha ou UUID foi versionado; o fixture de validacao foi ficticio, local e removido ao final.
+- Decisao registrada em `DECISIONS.md` como DEC-052.
 
 ## Decisoes aprovadas incorporadas
 

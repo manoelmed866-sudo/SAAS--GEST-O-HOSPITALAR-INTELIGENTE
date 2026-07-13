@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 const mocks = vi.hoisted(() => ({
   from: vi.fn(),
   createClient: vi.fn(),
@@ -13,7 +16,12 @@ export {};
 // pelo teste pgTAP da Etapa 4 da Sprint 03D3.
 
 type MaybeSingleResponse = {
-  data: { id: string; organization_id: string } | null;
+  data: {
+    id: string;
+    organization_id: string;
+    code: string;
+    display_name: string;
+  } | null;
   error: { message?: string } | null;
 };
 
@@ -29,6 +37,8 @@ vi.mock("@/lib/auth/context-cookie", () => ({
 
 const VALID_ORGANIZATION_ID = "11111111-1111-4111-8111-111111111111";
 const VALID_HOSPITAL_ID = "22222222-2222-4222-8222-222222222222";
+const VALID_HOSPITAL_CODE = "hospital-alfa";
+const VALID_HOSPITAL_DISPLAY_NAME = "Hospital Alfa";
 
 type QuerySpy = {
   table: string | null;
@@ -78,9 +88,14 @@ describe("validateActiveContext", () => {
     vi.clearAllMocks();
   });
 
-  it("retorna active quando a linha e encontrada", async () => {
+  it("retorna active com IDs, codigo e nome do hospital", async () => {
     configureHospitalsQuery({
-      data: { id: VALID_HOSPITAL_ID, organization_id: VALID_ORGANIZATION_ID },
+      data: {
+        id: VALID_HOSPITAL_ID,
+        organization_id: VALID_ORGANIZATION_ID,
+        code: VALID_HOSPITAL_CODE,
+        display_name: VALID_HOSPITAL_DISPLAY_NAME,
+      },
       error: null,
     });
     const { validateActiveContext } = await import("@/lib/auth/context");
@@ -95,15 +110,24 @@ describe("validateActiveContext", () => {
       context: {
         organizationId: VALID_ORGANIZATION_ID,
         hospitalId: VALID_HOSPITAL_ID,
+        hospitalCode: VALID_HOSPITAL_CODE,
+        hospitalDisplayName: VALID_HOSPITAL_DISPLAY_NAME,
       },
     });
   });
 
-  it("no retorno active usa os IDs vindos da linha do banco", async () => {
+  it("no retorno active usa os IDs, codigo e nome vindos da linha do banco", async () => {
     const bankOrganizationId = "33333333-3333-4333-8333-333333333333";
     const bankHospitalId = "44444444-4444-4444-8444-444444444444";
+    const bankCode = "hospital-beta";
+    const bankName = "Hospital Beta";
     configureHospitalsQuery({
-      data: { id: bankHospitalId, organization_id: bankOrganizationId },
+      data: {
+        id: bankHospitalId,
+        organization_id: bankOrganizationId,
+        code: bankCode,
+        display_name: bankName,
+      },
       error: null,
     });
     const { validateActiveContext } = await import("@/lib/auth/context");
@@ -113,11 +137,14 @@ describe("validateActiveContext", () => {
       hospitalId: VALID_HOSPITAL_ID,
     });
 
+    // Todos os campos apresentaveis vem da linha do banco, nunca do input.
     expect(result).toEqual({
       status: "active",
       context: {
         organizationId: bankOrganizationId,
         hospitalId: bankHospitalId,
+        hospitalCode: bankCode,
+        hospitalDisplayName: bankName,
       },
     });
   });
@@ -173,7 +200,12 @@ describe("validateActiveContext", () => {
 
   it("consulta apenas a tabela hospitals com select explicito, filtros e maybeSingle", async () => {
     const spy = configureHospitalsQuery({
-      data: { id: VALID_HOSPITAL_ID, organization_id: VALID_ORGANIZATION_ID },
+      data: {
+        id: VALID_HOSPITAL_ID,
+        organization_id: VALID_ORGANIZATION_ID,
+        code: VALID_HOSPITAL_CODE,
+        display_name: VALID_HOSPITAL_DISPLAY_NAME,
+      },
       error: null,
     });
     const { validateActiveContext } = await import("@/lib/auth/context");
@@ -183,9 +215,11 @@ describe("validateActiveContext", () => {
       hospitalId: VALID_HOSPITAL_ID,
     });
 
+    // Uma unica consulta: nenhuma chamada extra ao banco foi introduzida.
+    expect(mocks.createClient).toHaveBeenCalledTimes(1);
     expect(mocks.from).toHaveBeenCalledTimes(1);
     expect(spy.table).toBe("hospitals");
-    expect(spy.selectArg).toBe("id, organization_id");
+    expect(spy.selectArg).toBe("id, organization_id, code, display_name");
     expect(spy.eqCalls).toEqual([
       { column: "id", value: VALID_HOSPITAL_ID },
       { column: "organization_id", value: VALID_ORGANIZATION_ID },
@@ -230,7 +264,12 @@ describe("resolveActiveContext", () => {
       },
     });
     configureHospitalsQuery({
-      data: { id: VALID_HOSPITAL_ID, organization_id: VALID_ORGANIZATION_ID },
+      data: {
+        id: VALID_HOSPITAL_ID,
+        organization_id: VALID_ORGANIZATION_ID,
+        code: VALID_HOSPITAL_CODE,
+        display_name: VALID_HOSPITAL_DISPLAY_NAME,
+      },
       error: null,
     });
     const { resolveActiveContext } = await import("@/lib/auth/context");
@@ -242,8 +281,40 @@ describe("resolveActiveContext", () => {
       context: {
         organizationId: VALID_ORGANIZATION_ID,
         hospitalId: VALID_HOSPITAL_ID,
+        hospitalCode: VALID_HOSPITAL_CODE,
+        hospitalDisplayName: VALID_HOSPITAL_DISPLAY_NAME,
       },
     });
+  });
+
+  it("nao le nome nem codigo do cookie: o cookie so carrega ids e v", async () => {
+    // O cookie presente nao possui code/display_name; eles vem do banco.
+    mocks.readContextCookie.mockResolvedValue({
+      status: "present",
+      payload: {
+        organizationId: VALID_ORGANIZATION_ID,
+        hospitalId: VALID_HOSPITAL_ID,
+        v: 1,
+      },
+    });
+    configureHospitalsQuery({
+      data: {
+        id: VALID_HOSPITAL_ID,
+        organization_id: VALID_ORGANIZATION_ID,
+        code: "codigo-do-banco",
+        display_name: "Nome Do Banco",
+      },
+      error: null,
+    });
+    const { resolveActiveContext } = await import("@/lib/auth/context");
+
+    const result = await resolveActiveContext();
+
+    if (result.status !== "active") {
+      throw new Error("esperava contexto ativo");
+    }
+    expect(result.context.hospitalCode).toBe("codigo-do-banco");
+    expect(result.context.hospitalDisplayName).toBe("Nome Do Banco");
   });
 
   it("retorna invalid quando o cookie presente nao tem linha no banco", async () => {
@@ -325,5 +396,25 @@ describe("resolveActiveContext", () => {
     for (const result of nonActiveResults) {
       expect(result).not.toHaveProperty("context");
     }
+  });
+});
+
+describe("seguranca estatica de context.ts", () => {
+  it("nao usa service role, storage do navegador nem log de dados sensiveis", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "src/lib/auth/context.ts"),
+      "utf8",
+    );
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/\/\/.*$/gm, "");
+
+    expect(code).not.toMatch(/service[_-]?role/i);
+    expect(code).not.toMatch(/localStorage/);
+    expect(code).not.toMatch(/sessionStorage/);
+    expect(code).not.toMatch(/console\./);
+    // Exatamente dois pontos de cliente Supabase (inventario + validacao),
+    // sem cliente extra introduzido nesta etapa.
+    expect(code.match(/createClient\(/g)?.length ?? 0).toBe(2);
   });
 });

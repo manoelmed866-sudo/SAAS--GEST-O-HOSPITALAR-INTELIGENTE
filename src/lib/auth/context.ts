@@ -129,6 +129,8 @@ export async function getAuthorizedContextInventory(): Promise<AuthorizedContext
 export type ActiveContext = {
   organizationId: string;
   hospitalId: string;
+  hospitalCode: string;
+  hospitalDisplayName: string;
 };
 
 export type ActiveContextResult =
@@ -147,7 +149,7 @@ export async function validateActiveContext(
 
   const { data, error } = await supabase
     .from("hospitals")
-    .select("id, organization_id")
+    .select("id, organization_id, code, display_name")
     .eq("id", selection.hospitalId)
     .eq("organization_id", selection.organizationId)
     .eq("status", "active")
@@ -161,11 +163,15 @@ export async function validateActiveContext(
     return { status: "invalid" };
   }
 
+  // Nome e codigo vem exclusivamente da linha retornada pelo banco sob RLS,
+  // nunca do cookie e nunca de fallback com IDs.
   return {
     status: "active",
     context: {
       organizationId: data.organization_id,
       hospitalId: data.id,
+      hospitalCode: data.code,
+      hospitalDisplayName: data.display_name,
     },
   };
 }

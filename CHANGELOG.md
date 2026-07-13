@@ -4,6 +4,23 @@
 
 Todas as mudancas relevantes do projeto devem ser registradas aqui.
 
+## 2026-07-13
+
+### Checkpoint - Sprint 03D4 - Exibe contexto hospitalar ativo no painel
+
+- Painel `/painel` passou a resolver o contexto institucional ativo apos o gate de acesso, na ordem obrigatoria `requirePortalAccess()` e depois `resolveActiveContext()`, sem consultar o Supabase diretamente, sem `createClient`, sem service role, sem ler cookies diretamente, sem redirecionar e sem exibir UUIDs.
+- Enriquecido o tipo `ActiveContext` em `src/lib/auth/context.ts` com `hospitalCode` e `hospitalDisplayName`; nome e codigo do hospital vem exclusivamente da linha de `hospitals` revalidada sob RLS, nunca do cookie e nunca de fallback com IDs.
+- `validateActiveContext` continua com uma unica consulta a `hospitals`, agora com `select("id, organization_id, code, display_name")` e os mesmos filtros `id`, `organization_id` e `status = 'active'` via `maybeSingle()`, sem segunda consulta e sem join de autorizacao; o RLS da Sprint 03A permanece a barreira definitiva.
+- Painel renderiza distintamente os quatro estados: `active` exibe "Plantao ativo", nome e codigo do hospital e o link "Trocar hospital"; `absent` e tratado inline com "Selecione um hospital" e link "Selecionar hospital", sem redirect automatico; `invalid` e tratado inline orientando nova selecao; `error` permanece distinto, generico e nao apaga o cookie. Logout permanece disponivel em todos os estados.
+- Corrigido o texto antigo do painel que ainda afirmava que a sprint nao criava contexto ativo de hospital; nenhuma organizacao e exigida ou exibida para usuario hospital-only e nenhum UUID e exibido.
+- O cookie `ghi_active_context` continua minimo, com apenas `organizationId`, `hospitalId` e `v`; nome e codigo nunca sao persistidos no cookie.
+- Adicionado teste de revisao estatica de seguranca `tests/unit/sprint-03d4-static-security.test.ts`, com escopo por funcao, protegendo: painel consumindo gate e contexto pelas funcoes corretas e sem Supabase/cookie/storage/fetch/redirect/UUID/texto antigo/dominio clinico; `validateActiveContext` com consulta unica a `hospitals`, campos esperados e mapeamento de nome/codigo apenas da linha do banco; payload do cookie restrito a `organizationId`, `hospitalId` e `v`; e a acao de selecao revalidando por `validateActiveContext` e redirecionando apenas para `/painel`.
+- Ampliados os testes `tests/unit/auth-context-validate.test.ts` e `tests/unit/auth-pages.test.tsx` para cobrir o novo contrato de contexto e a renderizacao dos estados do painel.
+- Validacao E2E real aprovada em ambiente local com fixture ficticio efemero, removido integralmente ao final: login aprovado; estado `absent` aprovado; Hospital Alfa E2E exibido como ativo com nome e codigo corretos; Hospital Gama E2E de outro tenant oculto; troca de Alfa para Beta aprovada, com Alfa deixando de permanecer ativo; logout aprovado; novo login retornou ao estado `absent`. Estados `invalid` e `error` foram validados por testes automatizados, nao forcados manualmente.
+- Nenhuma migration, RLS, grant, role, permission ou Proxy foi alterada; nenhum modulo clinico, paciente, protocolo, medicamento, estoque ou dado assistencial foi criado; nenhum `createClient` direto foi adicionado ao painel e nenhuma segunda consulta foi adicionada a `validateActiveContext`.
+- Aprovados lint, typecheck, 176 testes unitarios, build, `db:lint` e 94 verificacoes pgTAP.
+- Decisao registrada em `DECISIONS.md` como DEC-052.
+
 ## 2026-07-12
 
 ### Checkpoint - Sprint 03D2 - Seletor visual de contexto institucional

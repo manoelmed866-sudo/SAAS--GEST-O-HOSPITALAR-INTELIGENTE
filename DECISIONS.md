@@ -407,3 +407,27 @@ Nenhuma migration, RLS, grant, role ou permission foi criada ou alterada. Nao ha
 Validacao real registrada: login real aprovado; rota protegida aprovada; dois hospitais autorizados visiveis; hospital de outro tenant oculto; caso hospital-only funcionando; selecao repetida entre dois hospitais aprovada; logout e novo login aprovados; troca de contexto aprovada. A validacao usou um fixture ficticio efemero em ambiente local, removido integralmente ao final.
 
 Motivo: dar ao usuario autenticado uma forma segura de escolher o hospital de trabalho, mantendo a autorizacao no RLS e no servidor, sem confiar no inventario renderizado, sem ampliar permissoes e sem antecipar o dashboard contextual da Sprint 03D4.
+
+### DEC-052 - Painel exibe contexto hospitalar ativo revalidado sob RLS na Sprint 03D4
+
+O painel `/painel` passa a resolver o contexto institucional ativo apos o gate de acesso: a ordem obrigatoria e `requirePortalAccess()` e somente entao `resolveActiveContext()`. O painel nao consulta o Supabase diretamente, nao usa `createClient` nem service role, nao le cookies diretamente, nao redireciona e nunca exibe UUIDs.
+
+`resolveActiveContext` permanece com os quatro estados discriminados `active`, `absent`, `invalid` e `error`, herdados da Sprint 03D3. O tipo `ActiveContext` foi enriquecido com `hospitalCode` e `hospitalDisplayName`, alem de `organizationId` e `hospitalId`. Nome e codigo do hospital vem exclusivamente da linha de `hospitals` revalidada sob RLS, nunca do cookie e nunca de fallback com IDs.
+
+`validateActiveContext` continua usando uma unica consulta a tabela `hospitals`, agora selecionando `id, organization_id, code, display_name`, com os mesmos filtros `id`, `organization_id` e `status = 'active'` via `maybeSingle()` e sob o cliente Supabase server-side autenticado. Nenhuma segunda consulta, join de autorizacao ou leitura de `organizations`/memberships foi adicionada; o RLS da Sprint 03A permanece a barreira definitiva.
+
+O cookie `ghi_active_context` continua contendo somente `organizationId`, `hospitalId` e `v`; nome e codigo nunca sao persistidos no cookie.
+
+Comportamento por estado no painel:
+
+- `active`: exibe "Plantao ativo", o nome e o codigo do hospital e o link "Trocar hospital".
+- `absent`: tratado inline, sem redirect automatico, com titulo "Selecione um hospital" e link "Selecionar hospital".
+- `invalid`: tratado inline, orientando nova selecao, sem ser confundido com erro tecnico.
+- `error`: permanece distinto, com mensagem generica, sem apagar o cookie e oferecendo "Tentar novamente".
+- Logout permanece disponivel em todos os estados.
+
+Nenhuma organizacao e exigida ou exibida para usuario hospital-only; nenhum UUID e exibido. Nenhuma migration, RLS, grant, role, permission ou Proxy foi alterada. Nenhum modulo clinico, paciente, protocolo, medicamento, estoque ou dado assistencial foi criado. Os estados `invalid` e `error` foram validados por testes automatizados, nao forcados manualmente em execucao real.
+
+Validacao E2E real registrada, com fixture ficticio efemero em ambiente local removido integralmente ao final: login aprovado; estado `absent` aprovado; Hospital Alfa E2E exibido como ativo com nome e codigo corretos; hospital de outro tenant (Hospital Gama E2E) oculto; troca de Alfa para Beta aprovada, com Alfa deixando de permanecer como ativo apos a troca; logout aprovado; novo login retornou ao estado `absent`.
+
+Motivo: entregar o dashboard contextual minimo que faltava na serie 03D, exibindo o hospital de trabalho ao usuario autenticado com nome e codigo confiaveis vindos do banco sob RLS, sem transformar o cookie em fonte de verdade, sem ampliar autorizacao e sem antecipar modulos clinicos.
