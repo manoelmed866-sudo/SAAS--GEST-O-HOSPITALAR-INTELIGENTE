@@ -431,3 +431,30 @@ Nenhuma organizacao e exigida ou exibida para usuario hospital-only; nenhum UUID
 Validacao E2E real registrada, com fixture ficticio efemero em ambiente local removido integralmente ao final: login aprovado; estado `absent` aprovado; Hospital Alfa E2E exibido como ativo com nome e codigo corretos; hospital de outro tenant (Hospital Gama E2E) oculto; troca de Alfa para Beta aprovada, com Alfa deixando de permanecer como ativo apos a troca; logout aprovado; novo login retornou ao estado `absent`.
 
 Motivo: entregar o dashboard contextual minimo que faltava na serie 03D, exibindo o hospital de trabalho ao usuario autenticado com nome e codigo confiaveis vindos do banco sob RLS, sem transformar o cookie em fonte de verdade, sem ampliar autorizacao e sem antecipar modulos clinicos.
+
+### DEC-053 - Sprint 03D5 como checkpoint de encerramento tecnico
+
+A Sprint 03D5 nao introduz nova funcionalidade. Nao existia escopo oficial previamente definido para a 03D5 na documentacao: ela era um slot remanescente da numeracao emergente das subfases da Sprint 03D. Os criterios de aceite da Sprint 03D ja haviam sido cumpridos pelas etapas 03D1 (inventario autorizado), 03D2 (seletor visual de contexto), 03D3 (cookie e revalidacao de contexto) e 03D4 (painel contextual com hospital ativo). Portanto, a 03D5 e redefinida como checkpoint que consolida e encerra tecnicamente a Sprint 03, com escopo exclusivamente documental.
+
+Nesta etapa:
+
+- Nao sera criado `src/lib/auth/capabilities.ts`.
+- Nao havera nova migration.
+- Nao havera alteracao de RLS, grants, roles, permissions ou cookie.
+- Nao havera alteracao de codigo, testes, Proxy ou paginas.
+
+A resolucao de capacidades efetivas do usuario sera planejada e implementada na Sprint 04, e nao aqui. Essa resolucao devera considerar a uniao dos tres escopos de autorizacao, nao apenas o escopo hospitalar:
+
+- plataforma (`platform_role_assignments`);
+- organizacao (`organization_membership_roles`);
+- hospital (`hospital_membership_roles`).
+
+Consultar somente `hospital_membership_roles` seria incompleto, pois ignoraria permissoes efetivas provenientes dos escopos de plataforma e organizacao; por isso a resolucao correta e maior e mais delicada do que caberia nesta etapa de encerramento.
+
+Principios preservados para a Sprint 04:
+
+- Nenhuma permissao ou capacidade sera persistida em cookie; o cookie `ghi_active_context` permanece um ponteiro minimo `{organizationId, hospitalId, v}`.
+- O RLS continuara sendo a barreira final de autorizacao.
+- A interface nunca sera a unica fonte de autorizacao; capacidades serao sempre revalidadas no servidor sob RLS.
+
+Motivo: encerrar formalmente a Sprint 03 com honestidade de escopo, evitando implementar uma camada de autorizacao granular incompleta sob pressao de numeracao, e transferindo a resolucao de capacidades efetivas para a sprint correta (Sprint 04), onde a uniao dos tres escopos podera ser modelada, testada e documentada com o cuidado necessario.

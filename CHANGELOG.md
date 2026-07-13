@@ -6,6 +6,15 @@ Todas as mudancas relevantes do projeto devem ser registradas aqui.
 
 ## 2026-07-13
 
+### Encerramento tecnico - Sprint 03 - Checkpoint 03D5
+
+- Sprint 03 concluida. Consolidados os checkpoints 03A (modelo institucional e RLS), 03B (clientes Supabase SSR e sessao), 03C (login, logout, rotas protegidas e acesso negado), 03D1 (inventario autorizado), 03D2 (seletor visual de contexto), 03D3 (cookie minimo e revalidacao de contexto), 03D4 (painel contextual com hospital ativo) e 03D5 (checkpoint de encerramento tecnico).
+- A 03D5 nao introduziu codigo novo: e uma etapa exclusivamente documental. Nao criou `capabilities.ts`, testes, migration, nem alterou RLS, grants, roles, permissions, cookie, Proxy ou paginas. A 03D5 nao possuia escopo oficial previamente definido; os criterios da Sprint 03D ja haviam sido cumpridos por 03D1 a 03D4.
+- Capacidades efetivas transferidas para a Sprint 04, onde serao resolvidas considerando a uniao dos tres escopos de autorizacao (plataforma, organizacao e hospital), sem persistir permissao ou capacidade em cookie, com o RLS como barreira final e sem confiar exclusivamente na interface.
+- Branch `sprint/03-autenticacao-instituicoes-permissoes` pronta para integracao posterior: 7 commits a frente e 0 atras da `main`, que permanece ancestral (merge fast-forward possivel).
+- Resultado consolidado no encerramento: 176 testes unitarios e 94 verificacoes pgTAP aprovados; lint, typecheck, build e `db:lint` aprovados; validacoes E2E das etapas 03D2 e 03D4 aprovadas; nenhum segredo versionado; nenhuma pendencia de fixture.
+- Decisao registrada em `DECISIONS.md` como DEC-053.
+
 ### Checkpoint - Sprint 03D4 - Exibe contexto hospitalar ativo no painel
 
 - Painel `/painel` passou a resolver o contexto institucional ativo apos o gate de acesso, na ordem obrigatoria `requirePortalAccess()` e depois `resolveActiveContext()`, sem consultar o Supabase diretamente, sem `createClient`, sem service role, sem ler cookies diretamente, sem redirecionar e sem exibir UUIDs.

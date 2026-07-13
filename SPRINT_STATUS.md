@@ -11,8 +11,8 @@ As sprints constroem progressivamente a Visao Funcional Completa. A Primeira Ver
 | Sprint 00 | Documentacao permanente | Concluída |
 | Sprint 01 | Fundacao visual e tecnica inicial | Concluída |
 | Sprint 02 | Fundacao local do banco e migracoes | Concluída |
-| Sprint 03 | Autenticacao, contexto institucional e extensao visual autenticada | Em execução |
-| Sprint 04 | Administracao, governanca e design system autenticado inicial | Pendente |
+| Sprint 03 | Autenticacao, contexto institucional e extensao visual autenticada | Concluída |
+| Sprint 04 | Administracao, governanca e design system autenticado inicial | Próxima |
 | Sprint 05 | Cadastro institucional hospitalar | Pendente |
 | Sprint 06 | Rede de referencia e comunicacao institucional | Pendente |
 | Sprint 07 | Episodios assistenciais | Pendente |
@@ -118,7 +118,11 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
 - No painel: `active` exibe "Plantao ativo", nome e codigo do hospital e o link "Trocar hospital"; `absent`, `invalid` e `error` sao tratados inline, sem redirect automatico; `error` permanece distinto e nao apaga o cookie; logout permanece em todos os estados; nenhum UUID e exibido e nenhuma organizacao e exigida para usuario hospital-only. O texto antigo do painel sobre ainda nao existir contexto ativo foi corrigido.
 - Validacao E2E real da Sprint 03D4 aprovada com fixture ficticio efemero (removido integralmente ao final): login aprovado; estado `absent` aprovado; Hospital Alfa E2E exibido como ativo com nome e codigo corretos; Hospital Gama E2E de outro tenant oculto; troca de Alfa para Beta aprovada, com Alfa deixando de permanecer ativo; logout aprovado; novo login retornou ao estado `absent`. Estados `invalid` e `error` foram validados por testes automatizados, nao forcados manualmente.
 - Resultado validado da Sprint 03D4: 176 testes unitarios e 94 verificacoes pgTAP aprovados; lint, typecheck, build, `db:lint` e `db:test` aprovados. Nenhuma migration, RLS, grant, role, permission ou Proxy foi alterada; nenhum modulo clinico foi criado. Decisao registrada como DEC-052.
-- Sprint 03D5 permanece nao iniciada.
+- Sprint 03D5 concluida como checkpoint de encerramento tecnico da Sprint 03, exclusivamente documental: nao introduziu codigo, teste, migration, capabilities, alteracao de RLS/grants/roles/permissions/cookie/Proxy/paginas. A 03D5 nao tinha escopo oficial previo; os criterios da Sprint 03D ja haviam sido cumpridos por 03D1 a 03D4. Decisao registrada como DEC-053.
+- Sprint 03 CONCLUIDA. Subfases concluidas: 03A (modelo institucional e RLS), 03B (clientes Supabase SSR e sessao), 03C (login, logout, rotas protegidas e acesso negado), 03D1 (inventario autorizado), 03D2 (seletor visual de contexto), 03D3 (cookie minimo e revalidacao de contexto), 03D4 (painel contextual com hospital ativo) e 03D5 (checkpoint de encerramento tecnico).
+- Resultado consolidado da Sprint 03 no encerramento: 176 testes unitarios e 94 verificacoes pgTAP aprovados; lint, typecheck, build e `db:lint` aprovados; validacoes E2E das etapas 03D2 e 03D4 aprovadas; nenhum segredo versionado; nenhuma pendencia de fixture.
+- Pendencias transferidas para a Sprint 04: resolucao de capacidades efetivas com uniao dos escopos de plataforma, organizacao e hospital; capacidades semanticas; gestao de usuarios e vinculos; gestao de papeis e permissoes; convites; interfaces administrativas; workspaces por perfil; design system autenticado; gates de modulos por capacidade.
+- Sprint 04 e a proxima etapa e ainda nao foi iniciada; nenhuma capacidade efetiva foi implementada na Sprint 03.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 

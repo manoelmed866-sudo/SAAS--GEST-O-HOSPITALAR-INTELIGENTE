@@ -4,7 +4,7 @@
 
 ## Estado do documento
 
-Sprint 03: Em execucao.
+Sprint 03: Concluida.
 
 Sprint 03A: Concluida.
 
@@ -12,7 +12,7 @@ Sprint 03B: Concluida tecnicamente e versionada.
 
 Sprint 03C: Concluida e validada localmente.
 
-Sprint 03D: Em execucao. Sprint 03D1, Sprint 03D3, Sprint 03D2 e Sprint 03D4 concluidas como checkpoints; Sprint 03D5 nao iniciada.
+Sprint 03D: Concluida. Sprint 03D1, Sprint 03D2, Sprint 03D3 e Sprint 03D4 concluidas como checkpoints; Sprint 03D5 concluida como checkpoint de encerramento tecnico da Sprint 03.
 
 Este documento registra o planejamento documental da Sprint 03, as implementacoes controladas das Sprints 03A, 03B e 03C e seus limites. A Sprint 03C criou fluxo visual de login/logout, protecao de rota e acesso negado, sem implementar Sprint 03D, APIs de negocio, novas tabelas, migracoes, usuarios, dados clinicos, dados reais ou Supabase remoto.
 
@@ -1382,6 +1382,78 @@ Resultado tecnico confirmado da Sprint 03D4:
 - Confirmado que nenhuma migration, RLS, grant, papel, permissao ou Proxy foi alterada, que nenhum `createClient` direto foi adicionado ao painel e que nenhuma segunda consulta foi adicionada a `validateActiveContext`.
 - Confirmado que `.env.local` permanece ignorado e que nenhuma chave, token, JWT, service role, senha ou UUID foi versionado; o fixture de validacao foi ficticio, local e removido ao final.
 - Decisao registrada em `DECISIONS.md` como DEC-052.
+
+### Encerramento tecnico da Sprint 03 - Checkpoint 03D5
+
+Estado: Sprint 03 concluida. A Sprint 03D5 e um checkpoint de encerramento tecnico, exclusivamente documental: nao introduziu codigo, teste, migration, `capabilities.ts`, nem alteracao de RLS, grants, roles, permissions, cookie, Proxy ou paginas. A 03D5 nao possuia escopo oficial previamente definido; os criterios da Sprint 03D ja haviam sido cumpridos pelas etapas 03D1 a 03D4. Decisao registrada em `DECISIONS.md` como DEC-053.
+
+#### A. Criterios concluidos
+
+- Autenticacao.
+- Logout.
+- Protecao de rotas.
+- Acesso negado.
+- Modelo institucional.
+- Isolamento por RLS.
+- Inventario autorizado.
+- Suporte hospital-only.
+- Selecao explicita.
+- Cookie minimo.
+- Revalidacao do contexto.
+- Hospital ativo no painel.
+- Troca de hospital.
+- Limpeza do contexto no logout.
+
+#### B. Subfases concluidas
+
+- 03A - modelo institucional e RLS.
+- 03B - clientes Supabase SSR e sessao.
+- 03C - login, logout, rotas protegidas e acesso negado.
+- 03D1 - inventario autorizado.
+- 03D2 - seletor visual de contexto.
+- 03D3 - cookie minimo e revalidacao de contexto.
+- 03D4 - painel contextual com hospital ativo.
+- 03D5 - checkpoint de encerramento tecnico (closure checkpoint).
+
+#### C. Resultados finais
+
+- 176 testes unitarios aprovados.
+- 94 verificacoes pgTAP aprovadas.
+- Lint, typecheck, build e `db:lint` aprovados.
+- Validacoes E2E das etapas 03D2 e 03D4 aprovadas.
+- Nenhum segredo versionado.
+- Nenhuma pendencia de fixture.
+
+#### D. Pendencias transferidas para a Sprint 04
+
+- Resolucao de capacidades efetivas.
+- Uniao de permissoes de plataforma, organizacao e hospital.
+- Capacidades semanticas.
+- Gestao de usuarios e vinculos.
+- Gestao de papeis e permissoes.
+- Convites.
+- Interfaces administrativas.
+- Workspaces por perfil.
+- Design system autenticado.
+- Gates de modulos por capacidade.
+
+A resolucao de capacidades efetivas devera considerar a uniao dos tres escopos de autorizacao (`platform_role_assignments`, `organization_membership_roles` e `hospital_membership_roles`), pois consultar somente o escopo hospitalar seria incompleto. Nenhuma permissao ou capacidade sera persistida em cookie; o RLS permanecera a barreira final; e a interface nunca sera a unica fonte de autorizacao.
+
+#### E. Fora do escopo encerrado
+
+- Pacientes.
+- Prontuario.
+- Triagem.
+- Protocolos.
+- Diagnosticos.
+- Medicamentos.
+- Insumos.
+- Estoque.
+- Laboratorio clinico.
+- UTI.
+- IA.
+- Voz.
+- Integracoes externas.
 
 ## Decisoes aprovadas incorporadas
 
