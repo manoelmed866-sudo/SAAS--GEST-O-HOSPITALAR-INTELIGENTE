@@ -138,7 +138,14 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
   - Rota administrativa demonstrativa `/painel/admin/equipe` (Server Component `force-dynamic`): `requirePortalAccess()` e depois `evaluateHospitalCapability("canManageMemberships")`, com cinco estados renderizados; acesso direto por URL continua avaliado no servidor; a rota ainda NAO possui CRUD, formulario administrativo ou mutacao (reservados a 04C).
   - E2E assistido aprovado por fluxo HTTP real com sessoes isoladas: `member` sem link e negado por URL direta; `hospital_admin` com link e autorizado; logout validado; fixtures integralmente removidas com contagens finais zeradas.
   - Resultado validado da Sprint 04B: 292 testes unitarios e 115 verificacoes pgTAP aprovados; lint, typecheck, build e `db:lint` aprovados. Nenhuma migration, RPC, RLS, cookie ou Proxy alterado. Decisao registrada como DEC-055.
-- Sprint 04C ainda nao iniciada (administracao real de usuarios e vinculos). Demais subfases sugeridas (nao iniciadas): 04D gestao de papeis e permissoes; 04E design system autenticado e workspaces iniciais.
+- Sprint 04C EM ANDAMENTO (administracao real de usuarios e vinculos).
+- Sprint 04C.1 CONCLUIDA: listagem somente leitura da equipe do hospital ativo.
+  - RPC `public.get_hospital_team(uuid)` SECURITY DEFINER com validacao interna explicita (perfil ativo + `hospital_memberships.read` por escopo hospitalar ou organizacional), fail-closed, sem bypass de platform_admin, sem auth.users, sem e-mail, sem UUID e sem role.code no retorno; EXECUTE somente para authenticated; RLS inalterada. Necessidade comprovada: SECURITY INVOKER herdaria o bloqueio de organization_memberships e nao atenderia ao hospital_admin. Decisao registrada como DEC-056.
+  - Resolver `resolveActiveHospitalTeam()` sem argumentos: gate por `canReadMemberships` (denied sem RPC), Zod estrito, lista vazia valida, mesmo `ActiveContext` revalidado.
+  - Painel passa a exibir "Ver equipe" por `canReadMemberships` (auditor enxerga; member nao); a pagina `/painel/admin/equipe` lista nome, status traduzido (Ativo/Suspenso/Pendente) e papeis amigaveis, sem CRUD, sem formulario administrativo e sem Server Action de dominio.
+  - E2E assistido aprovado com tres perfis isolados: member sem link e negado por URL direta; hospital_auditor e hospital_admin autorizados com a listagem completa (suspended -> Suspenso, pending -> Pendente, revoked ausente); logout validado; fixtures integralmente removidas.
+  - Resultado validado da Sprint 04C.1: 330 testes unitarios e 139 verificacoes pgTAP aprovados; lint, typecheck, build e `db:lint` aprovados.
+- Sprint 04C.2 ainda nao iniciada (mutacoes de vinculo com invariantes e auditoria administrativa). Demais subfases sugeridas (nao iniciadas): 04D gestao de papeis e permissoes; 04E design system autenticado e workspaces iniciais.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 

@@ -203,12 +203,14 @@ describe("Sprint 04B - painel com capacidades efetivas", () => {
     expect(panel).not.toMatch(/canSwitchContext/);
   });
 
-  it("Gerenciar equipe condicionado somente a canManageMemberships", () => {
+  it("link da equipe condicionado somente a canReadMemberships (04C.1)", () => {
     expect(panel).toMatch(
-      /capabilities\.canManageMemberships \?[\s\S]{0,200}?["'`]\/painel\/admin\/equipe["'`][\s\S]{0,200}?Gerenciar equipe/,
+      /capabilities\.canReadMemberships \?[\s\S]{0,200}?["'`]\/painel\/admin\/equipe["'`][\s\S]{0,200}?Ver equipe/,
     );
-    // canManageMemberships e a UNICA capacidade consumida pelo painel.
+    // canReadMemberships e a UNICA capacidade consumida pelo painel; a
+    // visibilidade da listagem NAO depende mais de canManageMemberships.
     expect(countMatches(panel, /capabilities\./g)).toBe(1);
+    expect(panel).not.toMatch(/capabilities\.canManageMemberships/);
     // Sem alternativa desabilitada quando a capacidade e falsa.
     expect(panel).not.toMatch(/disabled/i);
     expect(panel).not.toMatch(/aria-disabled/);
@@ -223,7 +225,7 @@ describe("Sprint 04B - painel com capacidades efetivas", () => {
     }
     // O texto visivel nunca menciona o nome interno da capacidade fora do
     // condicional de codigo (unica ocorrencia ja contada acima).
-    expect(countMatches(panel, /canManageMemberships/g)).toBe(1);
+    expect(countMatches(panel, /canReadMemberships/g)).toBe(1);
     expect(panel).toMatch(/logoutAction/);
     expect(panel).toMatch(/action=\{logoutAction\}/);
   });
@@ -237,20 +239,20 @@ describe("Sprint 04B - rota administrativa demonstrativa", () => {
     expect(admin).toMatch(/export const dynamic = "force-dynamic"/);
   });
 
-  it("aplica requirePortalAccess uma vez, antes do gate por capacidade", () => {
+  it("aplica requirePortalAccess uma vez, antes do resolver da equipe (04C.1)", () => {
     expect(countMatches(admin, /requirePortalAccess\(\)/g)).toBe(1);
     const accessAt = admin.indexOf("await requirePortalAccess()");
-    const gateAt = admin.indexOf("evaluateHospitalCapability(");
+    const teamAt = admin.indexOf("resolveActiveHospitalTeam(");
     expect(accessAt).toBeGreaterThan(-1);
-    expect(gateAt).toBeGreaterThan(-1);
-    expect(accessAt).toBeLessThan(gateAt);
+    expect(teamAt).toBeGreaterThan(-1);
+    expect(accessAt).toBeLessThan(teamAt);
   });
 
-  it("chama evaluateHospitalCapability uma vez com o literal canManageMemberships", () => {
-    expect(countMatches(admin, /evaluateHospitalCapability\(/g)).toBe(1);
-    expect(admin).toMatch(
-      /evaluateHospitalCapability\(\s*"canManageMemberships"\s*\)/,
-    );
+  it("delega tudo a resolveActiveHospitalTeam, chamado uma unica vez", () => {
+    expect(countMatches(admin, /resolveActiveHospitalTeam\(\)/g)).toBe(1);
+    // A pagina nao consulta capacidades nem o gate diretamente.
+    expect(admin).not.toMatch(/evaluateHospitalCapability/);
+    expect(admin).not.toMatch(/canManageMemberships|canReadMemberships/);
   });
 
   it("nao recebe props, searchParams, params nem IDs externos", () => {
@@ -306,47 +308,48 @@ describe("Sprint 04B - estados da rota administrativa", () => {
   const admin = readStripped(ADMIN);
   const allowedBody = sliceBody(
     admin,
-    'gate.status === "allowed"',
-    'gate.status === "denied"',
+    'team.status === "allowed"',
+    'team.status === "denied"',
   );
   const deniedBody = sliceBody(
     admin,
-    'gate.status === "denied"',
-    'gate.status === "absent"',
+    'team.status === "denied"',
+    'team.status === "absent"',
   );
   const absentBody = sliceBody(
     admin,
-    'gate.status === "absent"',
-    'gate.status === "invalid"',
+    'team.status === "absent"',
+    'team.status === "invalid"',
   );
   const invalidBody = sliceBody(
     admin,
-    'gate.status === "invalid"',
+    'team.status === "invalid"',
     "admin-team-error-title",
   );
   // O bloco final (fallback) e o estado error.
   const errorBody = admin.slice(admin.indexOf("admin-team-error-title"));
 
-  it("cobre os cinco estados do gate", () => {
-    expect(admin).toMatch(/gate\.status === "allowed"/);
-    expect(admin).toMatch(/gate\.status === "denied"/);
-    expect(admin).toMatch(/gate\.status === "absent"/);
-    expect(admin).toMatch(/gate\.status === "invalid"/);
-    expect(errorBody).toMatch(/Não foi possível verificar a autorização/);
+  it("cobre os cinco estados do resolver", () => {
+    expect(admin).toMatch(/team\.status === "allowed"/);
+    expect(admin).toMatch(/team\.status === "denied"/);
+    expect(admin).toMatch(/team\.status === "absent"/);
+    expect(admin).toMatch(/team\.status === "invalid"/);
+    expect(errorBody).toMatch(/Não foi possível carregar a equipe/);
   });
 
-  it("allowed: gestao da equipe com hospital do gate e aviso futuro, sem CRUD", () => {
-    expect(allowedBody).toMatch(/Gestão da equipe/);
-    expect(allowedBody).toMatch(/gate\.context\.hospitalDisplayName/);
-    expect(allowedBody).toMatch(/será implementada em[\s\S]{0,40}etapa posterior/);
+  it("allowed: equipe do hospital do contexto, com estado vazio proprio e sem CRUD", () => {
+    expect(allowedBody).toMatch(/Equipe do hospital/);
+    expect(allowedBody).toMatch(/team\.context\.hospitalDisplayName/);
+    expect(allowedBody).toMatch(/Nenhum integrante encontrado/);
+    expect(allowedBody).toMatch(/team\.members\.map/);
     expect(allowedBody).not.toMatch(/<input|<select|<textarea/);
   });
 
   it("denied: mensagem generica sem conteudo allowed nem vazamento interno", () => {
-    expect(deniedBody).toMatch(/Sem permissão para gerenciar a equipe/);
-    expect(deniedBody).not.toMatch(/Gestão da equipe/);
+    expect(deniedBody).toMatch(/Sem permissão para visualizar a equipe/);
+    expect(deniedBody).not.toMatch(/Equipe do hospital/);
     expect(deniedBody).not.toMatch(/hospitalDisplayName/);
-    expect(deniedBody).not.toMatch(/canManageMemberships/);
+    expect(deniedBody).not.toMatch(/canManageMemberships|canReadMemberships/);
     expect(deniedBody).not.toMatch(/\brole\b|\bscope\b|\bpapel\b|capacidad/i);
   });
 
@@ -382,16 +385,16 @@ describe("Sprint 04B - a UI nao e a unica barreira", () => {
   });
 
   it("denied esconde o conteudo allowed e mantem o retorno ao painel", () => {
-    expect(adminTests).toMatch(/sem permissão para gerenciar a equipe/i);
-    expect(adminTests).toMatch(/gestão da equipe/i);
+    expect(adminTests).toMatch(/sem permissão para visualizar a equipe/i);
+    expect(adminTests).toMatch(/equipe do hospital/i);
     expect(adminTests).toMatch(/not\.toBeInTheDocument/);
     expect(adminTests).toMatch(/voltar ao painel/i);
   });
 
-  it("comprova o gate server-side: requirePortalAccess e a capacidade correta", () => {
+  it("comprova o gate server-side: requirePortalAccess e o resolver da equipe", () => {
     expect(adminTests).toMatch(/requirePortalAccess/);
-    expect(adminTests).toMatch(/evaluateHospitalCapability/);
-    expect(adminTests).toMatch(/toHaveBeenCalledWith\(\s*"canManageMemberships",?\s*\)/);
+    expect(adminTests).toMatch(/resolveActiveHospitalTeam/);
+    expect(adminTests).toMatch(/toHaveBeenCalledTimes\(1\)/);
   });
 });
 

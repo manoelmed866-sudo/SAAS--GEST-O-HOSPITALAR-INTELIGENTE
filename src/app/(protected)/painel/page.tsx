@@ -14,9 +14,11 @@ import { resolveActiveHospitalCapabilities } from "@/lib/auth/capabilities";
 // nunca exibe UUIDs. Nome e codigo do hospital vem exclusivamente do contexto
 // revalidado sob RLS.
 //
-// Link condicional:
-// "Gerenciar equipe" so e renderizado quando canManageMemberships e verdadeiro.
-// Quando falso, o link simplesmente nao existe: nada de botao desabilitado nem
+// Link condicional (Sprint 04C.1):
+// "Ver equipe" so e renderizado quando canReadMemberships e verdadeiro; a
+// listagem e somente leitura, entao a visibilidade segue a capacidade de
+// LEITURA (auditor enxerga; member nao), e nao canManageMemberships. Quando
+// falso, o link simplesmente nao existe: nada de botao desabilitado nem
 // explicacao de permissao interna. Nenhum nome de capacidade, papel, scope ou
 // codigo de permissao e exibido ao usuario. "Trocar hospital" permanece em todo
 // contexto active, independentemente de canSwitchContext, pois a barreira final
@@ -82,9 +84,9 @@ export default async function PanelPage() {
                 >
                   Trocar hospital
                 </Link>
-                {context.capabilities.canManageMemberships ? (
+                {context.capabilities.canReadMemberships ? (
                   <Link className="button" href="/painel/admin/equipe">
-                    Gerenciar equipe
+                    Ver equipe
                   </Link>
                 ) : null}
               </>

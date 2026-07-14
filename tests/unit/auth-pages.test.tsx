@@ -138,9 +138,9 @@ describe("paginas de autenticacao e painel", () => {
     expect(mocks.resolveActiveContext).not.toHaveBeenCalled();
   });
 
-  it("estado active + canManageMemberships true: exibe hospital, Trocar hospital e Gerenciar equipe", async () => {
+  it("estado active + canReadMemberships true: exibe hospital, Trocar hospital e Ver equipe", async () => {
     mocks.resolveActiveHospitalCapabilities.mockResolvedValueOnce(
-      activeResult({ canManageMemberships: true }),
+      activeResult({ canReadMemberships: true }),
     );
 
     await renderPanel();
@@ -153,17 +153,18 @@ describe("paginas de autenticacao e painel", () => {
     expect(
       screen.getByRole("link", { name: /trocar hospital/i }),
     ).toHaveAttribute("href", "/painel/selecionar-contexto");
-    expect(
-      screen.getByRole("link", { name: /gerenciar equipe/i }),
-    ).toHaveAttribute("href", "/painel/admin/equipe");
+    expect(screen.getByRole("link", { name: /ver equipe/i })).toHaveAttribute(
+      "href",
+      "/painel/admin/equipe",
+    );
     expect(screen.queryByText(ACTIVE_HOSPITAL_ID)).not.toBeInTheDocument();
     expect(screen.queryByText(ACTIVE_ORG_ID)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sair/i })).toBeInTheDocument();
   });
 
-  it("estado active + canManageMemberships false: Trocar hospital permanece e Gerenciar equipe nao aparece", async () => {
+  it("estado active + canReadMemberships false: Trocar hospital permanece e Ver equipe nao aparece", async () => {
     mocks.resolveActiveHospitalCapabilities.mockResolvedValueOnce(
-      activeResult({ canManageMemberships: false }),
+      activeResult({ canReadMemberships: false }),
     );
 
     await renderPanel();
@@ -174,9 +175,25 @@ describe("paginas de autenticacao e painel", () => {
       screen.getByRole("link", { name: /trocar hospital/i }),
     ).toHaveAttribute("href", "/painel/selecionar-contexto");
     expect(
-      screen.queryByRole("link", { name: /gerenciar equipe/i }),
+      screen.queryByRole("link", { name: /ver equipe/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sair/i })).toBeInTheDocument();
+  });
+
+  it("canManageMemberships sozinho nao controla mais o link Ver equipe", async () => {
+    mocks.resolveActiveHospitalCapabilities.mockResolvedValueOnce(
+      activeResult({ canManageMemberships: true, canReadMemberships: false }),
+    );
+
+    await renderPanel();
+
+    expect(
+      screen.queryByRole("link", { name: /ver equipe/i }),
+    ).not.toBeInTheDocument();
+    // Nenhum outro link aponta para a rota administrativa.
+    expect(
+      document.querySelector('a[href="/painel/admin/equipe"]'),
+    ).toBeNull();
   });
 
   it("Trocar hospital independe de canSwitchContext (false ainda mostra o link)", async () => {
@@ -212,7 +229,7 @@ describe("paginas de autenticacao e painel", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/Hospital Alfa/)).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: /gerenciar equipe/i }),
+      screen.queryByRole("link", { name: /ver equipe/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sair/i })).toBeInTheDocument();
   });
@@ -238,7 +255,7 @@ describe("paginas de autenticacao e painel", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText(/Hospital Alfa/)).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: /gerenciar equipe/i }),
+      screen.queryByRole("link", { name: /ver equipe/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sair/i })).toBeInTheDocument();
   });
@@ -266,7 +283,7 @@ describe("paginas de autenticacao e painel", () => {
       screen.queryByRole("heading", { name: /plantão ativo/i }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: /gerenciar equipe/i }),
+      screen.queryByRole("link", { name: /ver equipe/i }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sair/i })).toBeInTheDocument();
   });

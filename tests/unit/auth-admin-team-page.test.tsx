@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 
 const mocks = vi.hoisted(() => ({
   requirePortalAccess: vi.fn(),
-  evaluateHospitalCapability: vi.fn(),
+  resolveActiveHospitalTeam: vi.fn(),
   logoutAction: vi.fn(),
 }));
 
@@ -10,8 +10,8 @@ vi.mock("@/lib/auth/access", () => ({
   requirePortalAccess: mocks.requirePortalAccess,
 }));
 
-vi.mock("@/lib/auth/capability-gate", () => ({
-  evaluateHospitalCapability: mocks.evaluateHospitalCapability,
+vi.mock("@/lib/auth/hospital-team", () => ({
+  resolveActiveHospitalTeam: mocks.resolveActiveHospitalTeam,
 }));
 
 vi.mock("@/app/(auth)/actions", () => ({
@@ -19,41 +19,66 @@ vi.mock("@/app/(auth)/actions", () => ({
   logoutAction: mocks.logoutAction,
 }));
 
-// Esta suite exercita a rota administrativa demonstrativa /painel/admin/equipe.
-// A decisao allowed/denied vem exclusivamente de evaluateHospitalCapability
-// ("canManageMemberships"); a pagina nunca rele capabilities, nao testa papel
-// por nome e nao confia em estado visual, URL ou cookie. O acesso direto a URL
-// e barrado no servidor mesmo sem o link no painel.
+// Esta suite exercita a pagina /painel/admin/equipe da Sprint 04C.1 (listagem
+// somente leitura). A decisao allowed/denied e a listagem vem exclusivamente
+// de resolveActiveHospitalTeam; a pagina nunca consulta capacidades, gate ou
+// RPC diretamente. O acesso direto a URL continua barrado no servidor mesmo
+// sem o link no painel.
+
+const ACTIVE_ORG_ID = "11111111-1111-4111-8111-111111111111";
+const ACTIVE_HOSPITAL_ID = "22222222-2222-4222-8222-222222222222";
 
 const ACTIVE_CONTEXT = {
-  organizationId: "11111111-1111-4111-8111-111111111111",
-  hospitalId: "22222222-2222-4222-8222-222222222222",
+  organizationId: ACTIVE_ORG_ID,
+  hospitalId: ACTIVE_HOSPITAL_ID,
   hospitalCode: "hospital-alfa",
   hospitalDisplayName: "Hospital Alfa",
 };
 
-// Tokens internos que jamais devem vazar para a interface em nenhum estado.
-const LEAK_TOKENS = [
-  /canManageMemberships/i,
-  /\bscope\b/i,
-  /\bpapel\b/i,
-  /\bpapeis\b/i,
-  /\bcapacidad/i,
-  /\brole\b/i,
+const TEAM = [
+  {
+    displayName: "Dra. Ana Ficticia",
+    membershipStatus: "active" as const,
+    roleLabels: ["Administrador hospitalar", "Membro hospitalar"],
+  },
+  {
+    displayName: "Dr. Bruno Ficticio",
+    membershipStatus: "suspended" as const,
+    roleLabels: ["Membro hospitalar"],
+  },
+  {
+    displayName: "Enf. Clara Ficticia",
+    membershipStatus: "pending" as const,
+    roleLabels: [],
+  },
 ];
 
-// Rotulos de controles de mutacao que nao devem existir nesta etapa (sem CRUD).
+// Tokens internos que jamais devem vazar para a interface em nenhum estado.
+const LEAK_TOKENS = [
+  /canReadMemberships/i,
+  /canManageMemberships/i,
+  /\bscope\b/i,
+  /\bcapacidad/i,
+  /hospital_admin/,
+  /\bmember\b/,
+  /\bauditor\b/,
+  /@/,
+];
+
+// Rotulos de controles de mutacao que nao devem existir (sem CRUD).
 const MUTATION_CONTROLS = [
   /adicionar/i,
   /convidar/i,
   /editar/i,
-  /suspender/i,
+  /suspender$/i,
+  /reativar/i,
   /excluir/i,
   /remover/i,
   /salvar/i,
+  /alterar papel/i,
 ];
 
-async function renderAdmin() {
+async function renderTeamPage() {
   const { default: AdminTeamPage } = await import(
     "@/app/(protected)/painel/admin/equipe/page"
   );
@@ -71,9 +96,10 @@ function expectNoMutationControls() {
   for (const control of MUTATION_CONTROLS) {
     expect(screen.queryByRole("button", { name: control })).toBeNull();
   }
+  expect(document.querySelector("input, select, textarea")).toBeNull();
 }
 
-describe("rota administrativa /painel/admin/equipe", () => {
+describe("pagina /painel/admin/equipe (Sprint 04C.1)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.requirePortalAccess.mockResolvedValue({
@@ -84,40 +110,52 @@ describe("rota administrativa /painel/admin/equipe", () => {
     });
   });
 
-  it("aplica requirePortalAccess antes do gate e chama o gate exatamente uma vez", async () => {
-    mocks.evaluateHospitalCapability.mockResolvedValueOnce({
+  it("aplica requirePortalAccess antes do resolver, chamado exatamente uma vez", async () => {
+    mocks.resolveActiveHospitalTeam.mockResolvedValueOnce({
       status: "allowed",
       context: ACTIVE_CONTEXT,
+      members: TEAM,
     });
 
-    await renderAdmin();
+    await renderTeamPage();
 
     expect(mocks.requirePortalAccess).toHaveBeenCalledTimes(1);
-    expect(mocks.evaluateHospitalCapability).toHaveBeenCalledTimes(1);
-    expect(mocks.evaluateHospitalCapability).toHaveBeenCalledWith(
-      "canManageMemberships",
-    );
-    const gateAccessOrder = mocks.requirePortalAccess.mock.invocationCallOrder[0];
-    const capabilityOrder =
-      mocks.evaluateHospitalCapability.mock.invocationCallOrder[0];
-    expect(gateAccessOrder).toBeLessThan(capabilityOrder);
+    expect(mocks.resolveActiveHospitalTeam).toHaveBeenCalledTimes(1);
+    const accessOrder = mocks.requirePortalAccess.mock.invocationCallOrder[0];
+    const teamOrder = mocks.resolveActiveHospitalTeam.mock.invocationCallOrder[0];
+    expect(accessOrder).toBeLessThan(teamOrder);
   });
 
-  it("allowed: exibe Gestao da equipe, o hospital, o aviso futuro e nenhum CRUD", async () => {
-    mocks.evaluateHospitalCapability.mockResolvedValueOnce({
+  it("allowed com membros: lista nomes, status traduzidos e papeis amigaveis", async () => {
+    mocks.resolveActiveHospitalTeam.mockResolvedValueOnce({
       status: "allowed",
       context: ACTIVE_CONTEXT,
+      members: TEAM,
     });
 
-    await renderAdmin();
+    await renderTeamPage();
 
     expect(
-      screen.getByRole("heading", { name: /gestão da equipe/i }),
+      screen.getByRole("heading", { name: /equipe do hospital/i }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Hospital Alfa/)).toBeInTheDocument();
+    expect(screen.getByText("Dra. Ana Ficticia")).toBeInTheDocument();
+    expect(screen.getByText("Dr. Bruno Ficticio")).toBeInTheDocument();
+    expect(screen.getByText("Enf. Clara Ficticia")).toBeInTheDocument();
+    // Status traduzidos, nunca o valor interno em ingles.
+    expect(screen.getAllByText("Ativo").length).toBeGreaterThan(0);
+    expect(screen.getByText("Suspenso")).toBeInTheDocument();
+    expect(screen.getByText("Pendente")).toBeInTheDocument();
+    expect(screen.queryByText(/\bactive\b/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\bsuspended\b/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\bpending\b/)).not.toBeInTheDocument();
+    // Papeis amigaveis.
     expect(
-      screen.getByText(/será implementada em uma etapa posterior/i),
+      screen.getByText(/Administrador hospitalar, Membro hospitalar/),
     ).toBeInTheDocument();
+    // Sem UUID e sem e-mail.
+    expect(screen.queryByText(ACTIVE_HOSPITAL_ID)).not.toBeInTheDocument();
+    expect(screen.queryByText(ACTIVE_ORG_ID)).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /voltar ao painel/i }),
     ).toHaveAttribute("href", "/painel");
@@ -126,29 +164,47 @@ describe("rota administrativa /painel/admin/equipe", () => {
     expectNoLeakedTokens();
   });
 
-  it("denied por acesso direto: barra no servidor mesmo sem link no painel", async () => {
-    mocks.evaluateHospitalCapability.mockResolvedValueOnce({
+  it("allowed com lista vazia: mensagem propria, sem erro tecnico", async () => {
+    mocks.resolveActiveHospitalTeam.mockResolvedValueOnce({
+      status: "allowed",
+      context: ACTIVE_CONTEXT,
+      members: [],
+    });
+
+    await renderTeamPage();
+
+    expect(
+      screen.getByRole("heading", { name: /equipe do hospital/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Hospital Alfa/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/nenhum integrante encontrado para este hospital/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /não foi possível/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sair/i })).toBeInTheDocument();
+    expectNoMutationControls();
+    expectNoLeakedTokens();
+  });
+
+  it("denied por acesso direto: generico, sem lista e sem motivo interno", async () => {
+    mocks.resolveActiveHospitalTeam.mockResolvedValueOnce({
       status: "denied",
       context: ACTIVE_CONTEXT,
     });
 
-    // A pagina e renderizada isoladamente, sem qualquer painel: prova que a
-    // protecao nao depende da existencia do link "Gerenciar equipe".
-    await renderAdmin();
+    await renderTeamPage();
 
     expect(
       screen.getByRole("heading", {
-        name: /sem permissão para gerenciar a equipe/i,
+        name: /sem permissão para visualizar a equipe/i,
       }),
     ).toBeInTheDocument();
-    // Nenhum conteudo autorizado vaza.
     expect(
-      screen.queryByRole("heading", { name: /gestão da equipe/i }),
+      screen.queryByRole("heading", { name: /equipe do hospital/i }),
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/será implementada em uma etapa posterior/i),
-    ).not.toBeInTheDocument();
-    // Continua oferecendo retorno ao painel e logout.
+    expect(screen.queryByText("Dra. Ana Ficticia")).not.toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: /voltar ao painel/i }),
     ).toHaveAttribute("href", "/painel");
@@ -158,9 +214,9 @@ describe("rota administrativa /painel/admin/equipe", () => {
   });
 
   it("absent: orienta a selecionar uma unidade", async () => {
-    mocks.evaluateHospitalCapability.mockResolvedValueOnce({ status: "absent" });
+    mocks.resolveActiveHospitalTeam.mockResolvedValueOnce({ status: "absent" });
 
-    await renderAdmin();
+    await renderTeamPage();
 
     expect(
       screen.getByRole("heading", { name: /selecione um hospital/i }),
@@ -173,15 +229,14 @@ describe("rota administrativa /painel/admin/equipe", () => {
     ).toHaveAttribute("href", "/painel");
     expect(screen.getByRole("button", { name: /sair/i })).toBeInTheDocument();
     expectNoMutationControls();
-    expectNoLeakedTokens();
   });
 
   it("invalid: orienta nova selecao do hospital", async () => {
-    mocks.evaluateHospitalCapability.mockResolvedValueOnce({
+    mocks.resolveActiveHospitalTeam.mockResolvedValueOnce({
       status: "invalid",
     });
 
-    await renderAdmin();
+    await renderTeamPage();
 
     expect(
       screen.getByRole("heading", { name: /selecione novamente o hospital/i }),
@@ -189,22 +244,18 @@ describe("rota administrativa /painel/admin/equipe", () => {
     expect(
       screen.getByRole("link", { name: /selecionar outro hospital/i }),
     ).toHaveAttribute("href", "/painel/selecionar-contexto");
-    expect(
-      screen.getByRole("link", { name: /voltar ao painel/i }),
-    ).toHaveAttribute("href", "/painel");
     expect(screen.getByRole("button", { name: /sair/i })).toBeInTheDocument();
     expectNoMutationControls();
-    expectNoLeakedTokens();
   });
 
-  it("error: oferece tentar novamente na propria rota", async () => {
-    mocks.evaluateHospitalCapability.mockResolvedValueOnce({ status: "error" });
+  it("error: falha generica com tentar novamente na propria rota", async () => {
+    mocks.resolveActiveHospitalTeam.mockResolvedValueOnce({ status: "error" });
 
-    await renderAdmin();
+    await renderTeamPage();
 
     expect(
       screen.getByRole("heading", {
-        name: /não foi possível verificar a autorização/i,
+        name: /não foi possível carregar a equipe/i,
       }),
     ).toBeInTheDocument();
     expect(

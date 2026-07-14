@@ -10,7 +10,9 @@ Sprint 04A: Concluida.
 
 Sprint 04B: Concluida.
 
-Sprint 04C, 04D e 04E: nao iniciadas.
+Sprint 04C: Em andamento (04C.1 concluida; 04C.2 nao iniciada).
+
+Sprint 04D e 04E: nao iniciadas.
 
 Este documento registra o planejamento e a execucao controlada da Sprint 04, iniciada apos a integracao da Sprint 03 na `main`. A Sprint 04A entregou exclusivamente o contrato SQL de capacidades efetivas do hospital ativo e seu consumidor server-side, sem interface, sem CRUD, sem modulo clinico e sem consumo visual das capacidades. A Sprint 04B entregou o primeiro consumo dessas capacidades: navegacao condicional no painel, gate server-side reutilizavel e rota administrativa demonstrativa protegida no servidor, ainda sem CRUD.
 
@@ -121,9 +123,43 @@ Registrado sem credenciais, UUIDs, e-mails ou tokens:
 
 Decisao registrada em `DECISIONS.md` como DEC-055.
 
+## C2. Sprint 04C.1 concluida
+
+### C2.A. Objetivo
+
+- Primeira administracao real da equipe: listagem somente leitura dos integrantes do hospital ativo, sem nenhuma mutacao.
+
+### C2.B. RPC de listagem (DEC-056)
+
+- `public.get_hospital_team(target_hospital_id uuid)`: `language sql`, `stable`, **SECURITY DEFINER**, `set search_path = ''`, objetos qualificados, sem SQL dinamico.
+- Necessidade comprovada em auditoria: a policy de SELECT de `organization_memberships` exige permissao organizacional que o `hospital_admin` nao possui; SECURITY INVOKER herdaria o bloqueio. Afrouxar RLS foi rejeitado.
+- Validacao interna explicita antes de qualquer linha: perfil ativo, organizacao proprietaria ativa, hospital alvo ativo e `hospital_memberships.read` por papel hospitalar OU organizacional (ativo, nao revogado), via funcoes `app_private` existentes. Fail-closed; sem bypass de platform_admin; sem acesso por nome de papel.
+- Retorno minimo: `display_name`, `membership_status`, `role_labels` (somente `roles.display_name`). Sem `auth.users`, e-mail, UUID ou `role.code`. EXECUTE apenas para `authenticated`. RLS inalterada.
+- Regras: perfil inativo, vinculo organizacional nao ativo e vinculo `revoked` excluidos; `suspended`/`pending` aparecem com o proprio status; papeis somente de escopo hospital ativos; ordenacao deterministica; uma pessoa por linha.
+
+### C2.C. Resolver e interface
+
+- `resolveActiveHospitalTeam()` (`src/lib/auth/hospital-team.ts`), sem argumentos: uma chamada a `resolveActiveHospitalCapabilities()`; `denied` sem RPC quando `canReadMemberships` e falso; RPC somente com o `hospitalId` do contexto; Zod estrito; lista vazia valida; fail-closed.
+- Painel: link "Ver equipe" condicionado somente a `canReadMemberships` (auditor enxerga; member nao); `canManageMemberships` nao controla mais a visibilidade; "Trocar hospital" permanece incondicional.
+- Pagina `/painel/admin/equipe`: Server Component `force-dynamic`; `requirePortalAccess()` e depois o resolver; estados allowed (lista com nome, status traduzido Ativo/Suspenso/Pendente e papeis amigaveis), allowed vazio, denied generico, absent, invalid e error. Sem CRUD, formulario administrativo, Server Action de dominio, e-mail ou UUID; somente logout.
+
+### C2.D. Testes
+
+- `supabase/tests/008-sprint-04c-team-listing.test.sql`: 24 verificacoes pgTAP (estrutura da funcao, grants, autorizacao por perfil, isolamento entre hospitais e organizacoes, estados de vinculo, papel revogado, rotulos amigaveis, lista vazia, platform_admin sem bypass).
+- `tests/unit/auth-hospital-team.test.ts` (19), `tests/unit/auth-admin-team-page.test.tsx` (7), `tests/unit/auth-pages.test.tsx` (12) e `tests/unit/sprint-04c-static-security.test.ts` (16); testes estaticos da 04B atualizados minimamente para o novo consumo.
+- Totais: 330 testes unitarios e 139 verificacoes pgTAP aprovados.
+
+### C2.E. E2E assistido
+
+Registrado sem credenciais, UUIDs, e-mails ou tokens: fluxo HTTP real com tres perfis em sessoes isoladas. Member: sem link "Ver equipe" e negado por URL direta com estado generico. Hospital_auditor e hospital_admin: link presente e listagem completa com status traduzidos (suspended -> Suspenso, pending -> Pendente), vinculo revoked ausente, papeis amigaveis, nenhum e-mail/UUID/CRUD. Logout validado nos tres contextos; fixtures integralmente removidas com contagens zeradas.
+
+### C2.F. Proxima subfase
+
+- 04C.2 (nao iniciada): mutacoes de vinculo (suspender/reativar), invariantes de ultimo administrador e trilha de auditoria administrativa, sob nova decisao.
+
 ## D. Limitacoes conscientes
 
-- A rota administrativa e demonstrativa: a administracao real de usuarios e vinculos (CRUD) pertence a Sprint 04C, ainda nao iniciada.
+- A rota administrativa lista a equipe em modo somente leitura; as mutacoes de vinculo e papeis pertencem a 04C.2+, ainda nao iniciada.
 - "Trocar hospital" nao e condicionado a `canSwitchContext` nesta etapa; condicionar a troca fica para decisao futura especifica.
 - Nao ha categorias profissionais (medico, enfermeiro e afins nao sao papeis nesta etapa).
 - Nao ha expiracao temporal de vinculo; suspensao e revogacao sao tratadas por `status` e `revoked_at`.
@@ -134,7 +170,7 @@ Decisao registrada em `DECISIONS.md` como DEC-055.
 
 Sem detalhamento de implementacao nesta etapa:
 
-- 04C: administracao real de usuarios e vinculos (ainda nao iniciada).
+- 04C.2: mutacoes de vinculo com invariantes e auditoria administrativa (ainda nao iniciada).
 - 04D: gestao de papeis e permissoes.
 - 04E: design system autenticado e workspaces iniciais.
 

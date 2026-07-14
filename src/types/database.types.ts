@@ -508,6 +508,14 @@ export type Database = {
           can_switch_context: boolean
         }[]
       }
+      get_hospital_team: {
+        Args: { target_hospital_id: string }
+        Returns: {
+          display_name: string
+          membership_status: string
+          role_labels: string[]
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

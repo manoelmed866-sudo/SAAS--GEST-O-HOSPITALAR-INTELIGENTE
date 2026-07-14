@@ -524,3 +524,23 @@ Evidencia E2E:
 - Validacao visual (screenshots) e hidratacao client-side permanecem fora desta evidencia; as assercoes cobrem o HTML renderizado no servidor, onde vivem todas as garantias da 04B.
 
 Motivo: estabelecer desde o primeiro consumo visual que capacidade e assunto do servidor. A interface apenas reflete a autorizacao ja decidida sob RLS; nenhuma rota administrativa presente ou futura pode confiar na ausencia de link, em estado visual, em URL ou em cookie como protecao.
+
+### DEC-056 - Listagem da equipe por RPC SECURITY DEFINER com validacao interna
+
+A Sprint 04C.1 entrega a listagem somente leitura da equipe do hospital ativo. A auditoria da 04C comprovou a necessidade prevista na DEC-054: a leitura da equipe e estruturalmente bloqueada sob RLS para o `hospital_admin`, porque a policy de SELECT de `public.organization_memberships` exige permissao ORGANIZACIONAL (`organization_memberships.read`), que o papel hospitalar nao possui; sem ler `organization_memberships` nao ha como ligar o vinculo hospitalar ao `profile`. **SECURITY INVOKER herdaria exatamente esse bloqueio e nao atende ao hospital_admin.** Afrouxar a RLS de `organization_memberships` ampliaria a visibilidade de vinculos organizacionais alem da necessidade e foi rejeitado.
+
+Decisao:
+
+- SECURITY DEFINER e autorizado SOMENTE para esta RPC estreita de leitura: `public.get_hospital_team(target_hospital_id uuid)`, `language sql`, `stable`, `set search_path = ''`, objetos totalmente qualificados, sem SQL dinamico e sem `service_role`.
+- A autorizacao e validada EXPLICITAMENTE dentro da funcao, antes de qualquer linha, reproduzindo a semantica de `canReadMemberships` da 04A: perfil atual ativo, organizacao proprietaria ativa, hospital alvo ativo e permissao explicita `hospital_memberships.read` por papel hospitalar ativo/nao revogado no hospital alvo OU papel organizacional ativo/nao revogado na organizacao proprietaria. Fail-closed: sem permissao, zero linhas.
+- A identidade e resolvida pelas funcoes `app_private` existentes (`current_profile_is_active`, `current_user_has_hospital_permission`, `current_user_has_organization_permission`), que ja sao SECURITY DEFINER desde a Sprint 03A. Nenhum acesso por nome de papel e nenhum bypass automatico para `platform_admin`.
+- Retorno minimo por integrante: `display_name`, `membership_status` e `role_labels` (apenas `roles.display_name`, nunca `role.code`). Nenhuma leitura de `auth.users`, nenhum e-mail, nenhum UUID no retorno. `EXECUTE` revogado de PUBLIC e `anon`, concedido apenas a `authenticated`.
+- Regras da lista: somente o hospital alvo e a organizacao proprietaria; perfil inativo, vinculo organizacional nao ativo e vinculo hospitalar `revoked` sao excluidos; `suspended` e `pending` aparecem com o proprio status; papeis somente de escopo hospital, ativos e nao revogados; ordenacao deterministica; uma pessoa por linha.
+- A RLS permanece INALTERADA: nenhuma policy, grant de tabela, role ou permission foi modificada. A listagem e somente leitura; qualquer mutacao (suspender, reativar, atribuir/revogar papel, criar vinculo) pertence a 04C.2+ e exigira decisao propria, com invariantes de ultimo administrador e trilha de auditoria.
+
+Consumo:
+
+- O resolver `resolveActiveHospitalTeam()` nao recebe argumentos: o hospital vem exclusivamente do contexto ativo revalidado; o gate semantico `canReadMemberships` decide `denied` no servidor sem chamar a RPC; a resposta e validada com Zod estrito e falha fechada.
+- O painel exibe "Ver equipe" por `canReadMemberships` (auditor enxerga; member nao); `canManageMemberships` deixou de controlar a visibilidade da listagem.
+
+Motivo: destravar a administracao da equipe sem afrouxar RLS nem confiar na interface, abrindo a excecao SECURITY DEFINER prevista na DEC-054 de forma minima, explicita, testada por pgTAP (24 verificacoes no arquivo 008) e restrita a leitura.

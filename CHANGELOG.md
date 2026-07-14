@@ -6,6 +6,21 @@ Todas as mudancas relevantes do projeto devem ser registradas aqui.
 
 ## 2026-07-14
 
+### Checkpoint - Sprint 04C.1 - Listagem da equipe do hospital ativo
+
+- Sprint 04C.1 concluida na branch `sprint/04-administracao-governanca`: listagem somente leitura da equipe do hospital ativo, sem nenhuma mutacao, convite ou criacao de conta.
+- Criada a RPC `public.get_hospital_team(target_hospital_id uuid)`, `language sql`, `stable`, **SECURITY DEFINER**, `set search_path = ''`, com validacao interna explicita antes de qualquer linha: perfil ativo, organizacao proprietaria ativa, hospital alvo ativo e permissao explicita `hospital_memberships.read` por papel hospitalar OU organizacional (ativo e nao revogado), via funcoes `app_private` existentes. Fail-closed; sem bypass para `platform_admin`; sem acesso por nome de papel.
+- Necessidade do SECURITY DEFINER comprovada em auditoria (abre a excecao prevista na DEC-054): a policy de SELECT de `organization_memberships` exige permissao organizacional que o `hospital_admin` nao possui, entao SECURITY INVOKER herdaria o bloqueio e afrouxar a RLS ampliaria visibilidade alem da necessidade. Nenhuma policy, RLS, grant de tabela, role ou permission foi alterada.
+- Retorno minimo por integrante: `display_name`, `membership_status` e `role_labels` (somente `roles.display_name`, nunca `role.code`); sem `auth.users`, sem e-mail e sem UUID. `EXECUTE` revogado de PUBLIC e `anon`, concedido apenas a `authenticated`. Vinculo `revoked`, perfil inativo e vinculo organizacional nao ativo ficam fora da lista; `suspended` e `pending` aparecem com o proprio status; ordenacao deterministica.
+- Criado o resolver `resolveActiveHospitalTeam()` em `src/lib/auth/hospital-team.ts`, sem argumentos: uma unica chamada a `resolveActiveHospitalCapabilities()`; `denied` sem RPC quando `canReadMemberships` e falso; RPC somente com o `hospitalId` do contexto ativo; validacao Zod estrita (enum fechado de status, rotulos nao vazios, sem propriedades extras); lista vazia e `allowed` valido; resposta malformada falha fechada como `error`.
+- Painel: o link da equipe passou a ser "Ver equipe", condicionado somente a `canReadMemberships` (auditor enxerga; member nao); `canManageMemberships` deixou de controlar a visibilidade da listagem; "Trocar hospital" permanece incondicional no estado `active`.
+- Pagina `/painel/admin/equipe`: substituido o gate demonstrativo da 04B pela listagem real via `resolveActiveHospitalTeam()`, com estados allowed (nome, status traduzido Ativo/Suspenso/Pendente e papeis amigaveis), allowed vazio ("Nenhum integrante encontrado"), denied generico ("Sem permissão para visualizar a equipe"), absent, invalid e error. Nenhum CRUD, formulario administrativo, Server Action de dominio, e-mail, UUID ou codigo cru; somente o formulario de logout.
+- Regenerado `src/types/database.types.ts` pelo fluxo oficial `npm run db:types`, adicionando somente a nova funcao ao bloco `Functions`.
+- Adicionados testes: `supabase/tests/008-sprint-04c-team-listing.test.sql` (24 pgTAP: estrutura, grants, autorizacao, isolamento entre hospitais e organizacoes, estados de vinculo, papel revogado, rotulos amigaveis, lista vazia e platform_admin sem bypass), `tests/unit/auth-hospital-team.test.ts` (19), `tests/unit/sprint-04c-static-security.test.ts` (16); atualizados `auth-admin-team-page.test.tsx`, `auth-pages.test.tsx` e os testes estaticos da 04B afetados legitimamente.
+- E2E assistido aprovado por fluxo HTTP real com tres perfis em sessoes isoladas: member sem link e negado por URL direta; hospital_auditor e hospital_admin autorizados com a listagem completa (suspended -> Suspenso, pending -> Pendente, revoked ausente, papeis amigaveis, sem e-mail/UUID/CRUD); logout validado nos tres contextos; fixtures integralmente removidas com contagens zeradas.
+- Aprovados lint, typecheck, 330 testes unitarios, build, `db:lint` e 139 verificacoes pgTAP.
+- Decisao registrada em `DECISIONS.md` como DEC-056. Mutacoes de vinculo, invariantes de ultimo administrador e auditoria administrativa pertencem a 04C.2, nao iniciada.
+
 ### Checkpoint - Sprint 04B - Gates server-side por capacidade
 
 - Sprint 04B concluida na branch `sprint/04-administracao-governanca`: primeiro consumo visual das capacidades da 04A, com navegacao condicional e gate server-side, ainda sem CRUD.
