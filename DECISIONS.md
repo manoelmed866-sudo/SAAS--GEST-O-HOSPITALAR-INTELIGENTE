@@ -487,3 +487,40 @@ Limite consciente:
 - SECURITY DEFINER nao foi adotado. Uma funcao `security definer` (que permitiria um gate de organizacao ativa explicito e uniforme nos tres escopos) so podera ser avaliada futuramente mediante necessidade comprovada e nova decisao.
 
 Motivo: entregar a fundacao de autorizacao granular por capacidade de forma segura e testavel, mantendo o RLS como barreira final, sem expor o modelo interno de permissoes, sem confiar na interface e sem ampliar privilegios, preparando os gates de modulo e a administracao das proximas subfases da Sprint 04.
+
+### DEC-055 - Consumo visual de capacidades nunca substitui gate server-side
+
+A Sprint 04B introduz o primeiro consumo das capacidades efetivas entregues pela Sprint 04A. A regra central desta decisao: ocultar um link na interface e somente comportamento de interface; o acesso direto a rota deve continuar sendo avaliado no servidor, a cada requisicao. A ausencia do link nunca e a protecao.
+
+Gate server-side reutilizavel:
+
+- O helper `evaluateHospitalCapability(capability)` (`src/lib/auth/capability-gate.ts`) avalia UMA capacidade do hospital ativo e retorna um resultado discriminado: `allowed` e `denied` (ambos com o mesmo `ActiveContext` revalidado), `absent`, `invalid` e `error` propagados do resolver.
+- O argumento e restrito em TypeScript a `keyof HospitalCapabilities`; nenhuma string generica e aceita.
+- O helper nao redireciona, nao chama `notFound`, nao consulta o Supabase diretamente (sem `createClient`, RPC ou tabelas), nao le cookie, nao recebe `hospitalId`/`organizationId` e nao interpreta papel, scope ou codigo cru de permissao.
+- `allowed`/`denied` devolvem apenas o contexto: o mapa completo de capacidades nunca e retornado pelo gate, evitando que consumidores acumulem conhecimento de autorizacao alem do necessario.
+
+Painel:
+
+- O painel usa `resolveActiveHospitalCapabilities()` como fonte unica de contexto e capacidades, numa unica chamada apos `requirePortalAccess()`; nao chama mais `resolveActiveContext()` diretamente.
+- `canManageMemberships` controla apenas a visibilidade do link "Gerenciar equipe" (para `/painel/admin/equipe`). Quando falso, o link simplesmente nao existe: sem botao desabilitado e sem explicacao de permissao interna.
+- "Trocar hospital" NAO e condicionado a `canSwitchContext` nesta etapa: permanece disponivel para todo contexto `active`, pois a barreira da troca continua no servidor sob RLS. Condicionar a troca a capacidade fica para decisao futura especifica.
+
+Rota administrativa demonstrativa:
+
+- `/painel/admin/equipe` e Server Component `force-dynamic` que aplica `requirePortalAccess()` e entao `evaluateHospitalCapability("canManageMemberships")`, renderizando cinco estados: `allowed`, `denied`, `absent`, `invalid` e `error`.
+- `denied` e diferente de acesso negado institucional: o usuario tem acesso ao portal e contexto ativo valido, apenas nao possui esta capacidade; a mensagem e generica e nao revela papel, scope ou nome de capacidade.
+- A rota e demonstrativa e nao possui CRUD, formulario administrativo, Server Action de mutacao ou consulta direta a Supabase. Qualquer CRUD da equipe pertence a Sprint 04C.
+
+Invariantes preservados:
+
+- Nenhum papel ou codigo cru de permissao e exposto na interface.
+- Nenhuma capacidade e armazenada no cookie, que permanece o ponteiro minimo `{organizationId, hospitalId, v}`.
+- O RLS permanece a barreira final para operacoes de dados; os gates de pagina protegem navegacao e renderizacao, nao substituem o banco.
+
+Evidencia E2E:
+
+- E2E assistido comprovou o usuario `member` negado por URL direta (estado `denied` renderizado sem o conteudo autorizado, mesmo sem o link existir no painel) e o `hospital_admin` autorizado (link visivel e rota `allowed` com o hospital do contexto).
+- O E2E foi realizado por fluxo HTTP real contra o Next.js e o Supabase locais, com sessoes isoladas por usuario e formularios submetidos por progressive enhancement, sem navegador grafico.
+- Validacao visual (screenshots) e hidratacao client-side permanecem fora desta evidencia; as assercoes cobrem o HTML renderizado no servidor, onde vivem todas as garantias da 04B.
+
+Motivo: estabelecer desde o primeiro consumo visual que capacidade e assunto do servidor. A interface apenas reflete a autorizacao ja decidida sob RLS; nenhuma rota administrativa presente ou futura pode confiar na ausencia de link, em estado visual, em URL ou em cookie como protecao.

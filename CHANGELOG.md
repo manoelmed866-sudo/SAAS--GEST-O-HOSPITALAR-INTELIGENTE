@@ -4,6 +4,21 @@
 
 Todas as mudancas relevantes do projeto devem ser registradas aqui.
 
+## 2026-07-14
+
+### Checkpoint - Sprint 04B - Gates server-side por capacidade
+
+- Sprint 04B concluida na branch `sprint/04-administracao-governanca`: primeiro consumo visual das capacidades da 04A, com navegacao condicional e gate server-side, ainda sem CRUD.
+- Criado o helper `evaluateHospitalCapability(capability)` em `src/lib/auth/capability-gate.ts`: argumento restrito a `HospitalCapability = keyof HospitalCapabilities`; chama `resolveActiveHospitalCapabilities()` exatamente uma vez e devolve resultado discriminado `allowed`/`denied` (com o mesmo `ActiveContext` revalidado) ou propaga `absent`/`invalid`/`error`. Sem Supabase direto, sem cookie, sem redirect/notFound, sem `service_role` e sem devolver o mapa completo de capacidades.
+- Painel `/painel` passou a consumir `resolveActiveHospitalCapabilities()` como fonte unica de contexto e capacidades (nao chama mais `resolveActiveContext` diretamente), preservando os quatro estados, o nome/codigo do hospital e o logout. Link "Gerenciar equipe" (para `/painel/admin/equipe`) condicionado somente a `canManageMemberships`; quando falso, o link nao existe, sem botao desabilitado. "Trocar hospital" permanece incondicional no estado `active`.
+- Criada a rota administrativa demonstrativa `/painel/admin/equipe` (Server Component `force-dynamic`): `requirePortalAccess()` e depois `evaluateHospitalCapability("canManageMemberships")`, com cinco estados (`allowed`, `denied`, `absent`, `invalid`, `error`), protegida no servidor contra acesso direto por URL. Ausencia de CRUD: nenhum formulario administrativo, Server Action de mutacao ou consulta direta a Supabase; somente o formulario de logout.
+- Adicionados testes: `tests/unit/auth-capability-gate.test.ts` (20), `tests/unit/auth-admin-team-page.test.tsx` (6), `tests/unit/sprint-04b-static-security.test.ts` (36 estaticos) e atualizacao de `tests/unit/auth-pages.test.tsx`; `tests/unit/sprint-03d4-static-security.test.ts` atualizado minimamente para o novo consumo, preservando as demais garantias da 03D4.
+- E2E assistido aprovado por fluxo HTTP real contra Next.js e Supabase locais, com sessoes isoladas por usuario e sem navegador grafico: `member` sem o link e negado por URL direta (estado `denied` generico); `hospital_admin` com o link e autorizado ("Gestao da equipe" com o hospital do contexto); logout validado nos dois contextos; nenhuma capacidade, papel, UUID ou permissao crua exposta; nenhuma capacidade no cookie.
+- Fixtures temporarias do E2E integralmente removidas, com contagens finais de conferencia zeradas; nenhum arquivo temporario, credencial ou relatorio permaneceu no repositorio.
+- Nenhuma mudanca em banco, migration, RPC, RLS, grants, cookie, contexto, access ou Proxy.
+- Aprovados lint, typecheck, 292 testes unitarios, build, `db:lint` e 115 verificacoes pgTAP.
+- Decisao registrada em `DECISIONS.md` como DEC-055.
+
 ## 2026-07-13
 
 ### Checkpoint - Sprint 04A - Capacidades efetivas do hospital ativo

@@ -8,9 +8,11 @@ Sprint 04: Em andamento.
 
 Sprint 04A: Concluida.
 
-Sprint 04B, 04C, 04D e 04E: nao iniciadas.
+Sprint 04B: Concluida.
 
-Este documento registra o planejamento e a execucao controlada da Sprint 04, iniciada apos a integracao da Sprint 03 na `main`. A Sprint 04A entregou exclusivamente o contrato SQL de capacidades efetivas do hospital ativo e seu consumidor server-side, sem interface, sem CRUD, sem modulo clinico e sem consumo visual das capacidades.
+Sprint 04C, 04D e 04E: nao iniciadas.
+
+Este documento registra o planejamento e a execucao controlada da Sprint 04, iniciada apos a integracao da Sprint 03 na `main`. A Sprint 04A entregou exclusivamente o contrato SQL de capacidades efetivas do hospital ativo e seu consumidor server-side, sem interface, sem CRUD, sem modulo clinico e sem consumo visual das capacidades. A Sprint 04B entregou o primeiro consumo dessas capacidades: navegacao condicional no painel, gate server-side reutilizavel e rota administrativa demonstrativa protegida no servidor, ainda sem CRUD.
 
 ## A. Objetivo da Sprint 04
 
@@ -62,25 +64,81 @@ Testes:
 
 Resultado validado da Sprint 04A: lint, typecheck, build, `db:lint` aprovados; 227 testes unitarios e 115 verificacoes pgTAP aprovados. Decisao registrada em `DECISIONS.md` como DEC-054.
 
-## C. Limitacoes conscientes
+## C. Sprint 04B concluida
 
-- O painel ainda nao consome as capacidades; o consumo visual foi adiado.
-- Nao ha CRUD administrativo.
+### C.A. Objetivo
+
+- Primeiro consumo das capacidades efetivas entregues pela 04A.
+- Navegacao condicional no painel, refletindo (sem substituir) a autorizacao do servidor.
+- Gate server-side reutilizavel por capacidade, para paginas presentes e futuras.
+- Rota administrativa demonstrativa comprovando que o acesso direto por URL e avaliado no servidor.
+
+### C.B. Helper de gate por capacidade
+
+- Arquivo: `src/lib/auth/capability-gate.ts`, funcao `evaluateHospitalCapability(capability)`.
+- Argumento restrito em TypeScript a `HospitalCapability = keyof HospitalCapabilities`; nenhuma string generica.
+- Resultado discriminado em cinco estados: `allowed` e `denied` (ambos com o mesmo `ActiveContext` revalidado), `absent`, `invalid` e `error` propagados de `resolveActiveHospitalCapabilities()`, chamada exatamente uma vez.
+- Sem Supabase direto (sem `createClient`, RPC ou tabelas), sem leitura de cookie, sem `redirect`/`notFound`, sem `service_role`.
+- Sem `hospitalId` ou `organizationId` externos: o hospital vem exclusivamente do contexto ativo revalidado.
+- Sem retorno do mapa completo de capacidades: `allowed`/`denied` devolvem apenas o status e o contexto; somente a capacidade solicitada decide.
+
+### C.C. Painel
+
+- O painel passou a usar `resolveActiveHospitalCapabilities()` como fonte unica de contexto e capacidades, numa unica chamada apos `requirePortalAccess()`; `resolveActiveContext()` nao e mais chamado diretamente pelo painel.
+- Link "Gerenciar equipe" (para `/painel/admin/equipe`) condicionado somente a `capabilities.canManageMemberships`; quando falso, o link nao existe, sem botao desabilitado e sem explicar a permissao interna.
+- "Trocar hospital" permanece incondicional no estado `active`, independentemente de `canSwitchContext`; a barreira da troca continua no servidor sob RLS.
+- Estados anteriores preservados (`active`, `absent`, `invalid`, `error`), com nome e codigo do hospital revalidado, logout em todos os estados e nenhum papel, scope, codigo cru ou UUID exposto.
+
+### C.D. Rota administrativa demonstrativa
+
+- Rota: `/painel/admin/equipe`, Server Component com `export const dynamic = "force-dynamic"`.
+- Ordem obrigatoria: `requirePortalAccess()` e somente entao `evaluateHospitalCapability("canManageMemberships")`, chamado exatamente uma vez com o literal correto.
+- Cinco estados renderizados: `allowed` (eyebrow "Administracao institucional", titulo "Gestao da equipe", hospital do contexto e aviso de implementacao futura), `denied` (mensagem generica "Sem permissao para gerenciar a equipe", sem conteudo autorizado e sem revelar papel ou capacidade), `absent` e `invalid` (orientam a selecao com links para o seletor e para o painel) e `error` (tentativa novamente na propria rota e retorno ao painel). Logout em todos os estados.
+- Ausencia de CRUD: nenhum formulario administrativo, Server Action de mutacao, botao de adicionar/convidar/editar/suspender/excluir/remover/salvar ou consulta direta a Supabase, RPC, tabelas ou cookie.
+- Acesso direto protegido: a rota permanece barrada no servidor mesmo quando o link nao aparece no painel; `denied` e distinto do acesso negado institucional.
+
+### C.E. Testes
+
+- `tests/unit/auth-capability-gate.test.ts`: 20 testes do helper (allowed/denied por capacidade, preservacao do contexto, nao vazamento do mapa, propagacao de estados, resolucao unica).
+- `tests/unit/auth-pages.test.tsx`: painel atualizado para mockar `resolveActiveHospitalCapabilities`, cobrindo link condicional, "Trocar hospital" incondicional, ausencia do link administrativo em `absent`/`invalid`/`error` e a garantia de que `resolveActiveContext` nao e chamado diretamente.
+- `tests/unit/auth-admin-team-page.test.tsx`: 6 testes da rota (ordem dos gates, allowed, denied por acesso direto sem renderizar o painel, absent, invalid, error), com verificacao de nao vazamento e ausencia de controles de mutacao.
+- `tests/unit/sprint-04b-static-security.test.ts`: 36 testes estaticos de arquitetura e seguranca cobrindo helper, painel, rota, estados, prova de que a UI nao e a unica barreira, regressao da 03D4 e escopo proibido.
+- `tests/unit/sprint-03d4-static-security.test.ts`: atualizado minimamente para exigir `resolveActiveHospitalCapabilities` e proibir `resolveActiveContext` direto no painel, preservando todas as demais garantias da 03D4.
+- Totais: 292 testes unitarios e 115 verificacoes pgTAP aprovados.
+
+### C.F. E2E assistido
+
+Registrado sem credenciais, UUIDs, e-mails ou tokens:
+
+- Fluxo HTTP real contra o Next.js e o Supabase locais, com formularios submetidos por progressive enhancement das Server Actions (sem navegador grafico e sem dependencia nova) e sessoes/cookies isolados por usuario.
+- Usuario `member`: painel com hospital e codigo visiveis, "Trocar hospital" presente e SEM o link "Gerenciar equipe"; acesso direto a `/painel/admin/equipe` negado no servidor com o estado `denied` generico, sem conteudo autorizado.
+- Usuario `hospital_admin`: painel com o link "Gerenciar equipe" (href exato `/painel/admin/equipe`) e rota autorizada exibindo "Gestao da equipe", o hospital do contexto e o aviso de implementacao futura.
+- "Trocar hospital" presente para ambos os usuarios.
+- Logout validado nos dois contextos: retorno ao login e novo acesso a `/painel` exigindo autenticacao.
+- Ausencia de CRUD, de vazamento de capacidades/papeis/UUIDs nas paginas e de capacidades no cookie.
+- Fixtures temporarias integralmente removidas ao final, com contagens de conferencia zeradas (usuarios, perfis, vinculos, papeis, hospital e organizacao E2E).
+- Limitacao registrada: nao houve navegador grafico, screenshots ou validacao de hidratacao client-side; as assercoes cobrem o HTML renderizado no servidor.
+
+Decisao registrada em `DECISIONS.md` como DEC-055.
+
+## D. Limitacoes conscientes
+
+- A rota administrativa e demonstrativa: a administracao real de usuarios e vinculos (CRUD) pertence a Sprint 04C, ainda nao iniciada.
+- "Trocar hospital" nao e condicionado a `canSwitchContext` nesta etapa; condicionar a troca fica para decisao futura especifica.
 - Nao ha categorias profissionais (medico, enfermeiro e afins nao sao papeis nesta etapa).
 - Nao ha expiracao temporal de vinculo; suspensao e revogacao sao tratadas por `status` e `revoked_at`.
 - O gate de organizacao ativa no caminho hospital-only permanece transitivo pela visibilidade do hospital sob RLS, e nao por leitura direta de `organizations`.
 - `SECURITY DEFINER` nao foi adotado; sera avaliado apenas futuramente, mediante necessidade comprovada e nova decisao.
 
-## D. Proximas subfases sugeridas
+## E. Proximas subfases sugeridas
 
 Sem detalhamento de implementacao nesta etapa:
 
-- 04B: consumo inicial das capacidades na navegacao e gates server-side.
-- 04C: administracao de usuarios e vinculos.
+- 04C: administracao real de usuarios e vinculos (ainda nao iniciada).
 - 04D: gestao de papeis e permissoes.
 - 04E: design system autenticado e workspaces iniciais.
 
-## E. Fora do escopo
+## F. Fora do escopo
 
 - Pacientes.
 - Prontuario.

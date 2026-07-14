@@ -60,9 +60,13 @@ const ACTION =
 describe("Sprint 03D4 - seguranca estatica do painel", () => {
   const panel = readStripped(PANEL);
 
-  it("consome o gate e o contexto pelas funcoes corretas", () => {
+  it("consome o gate e as capacidades pelas funcoes corretas", () => {
     expect(panel).toMatch(/requirePortalAccess/);
-    expect(panel).toMatch(/resolveActiveContext/);
+    // Sprint 04B2: o painel resolve contexto E capacidades numa unica chamada.
+    expect(panel).toMatch(/resolveActiveHospitalCapabilities/);
+    // E nao chama mais resolveActiveContext diretamente: a resolucao do
+    // contexto passa a ser interna a resolveActiveHospitalCapabilities (04A2).
+    expect(panel).not.toMatch(/resolveActiveContext\b/);
     expect(panel).toMatch(/hospitalDisplayName/);
     expect(panel).toMatch(/hospitalCode/);
     expect(panel).toMatch(/["'`]\/painel\/selecionar-contexto["'`]/);
