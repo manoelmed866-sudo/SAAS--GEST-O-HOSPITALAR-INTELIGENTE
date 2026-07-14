@@ -544,3 +544,42 @@ Consumo:
 - O painel exibe "Ver equipe" por `canReadMemberships` (auditor enxerga; member nao); `canManageMemberships` deixou de controlar a visibilidade da listagem.
 
 Motivo: destravar a administracao da equipe sem afrouxar RLS nem confiar na interface, abrindo a excecao SECURITY DEFINER prevista na DEC-054 de forma minima, explicita, testada por pgTAP (24 verificacoes no arquivo 008) e restrita a leitura.
+
+### DEC-057 - Mutacoes de vinculos hospitalares por RPC transacional auditada
+
+A Sprint 04C.2 entrega as primeiras mutacoes administrativas reais: suspensao e reativacao de vinculos hospitalares, restritas a `active <-> suspended`. `pending` e `revoked` ficam fora do escopo (`revoked` permanece terminal). Nenhuma exclusao, revogacao, alteracao de papel, convite ou criacao de conta e possivel nesta etapa.
+
+Referencia opaca:
+
+- `hospital_memberships.management_ref` e uma referencia publica opaca de 128 bits (32 hex, `gen_random_bytes`, unique + check de formato). O UUID interno do vinculo NUNCA trafega no HTML nem no FormData.
+- A referencia opaca NAO autoriza: e apenas um endereco de alvo. A RPC revalida integralmente a autorizacao, o escopo e o estado antes de qualquer alteracao; referencia inexistente e referencia fora do escopo retornam o mesmo resultado, sem enumeracao.
+
+RPC unica de mutacao:
+
+- `public.change_hospital_membership_status(target_hospital_id uuid, target_management_ref text, requested_status text)`, `plpgsql`, `volatile`, **SECURITY DEFINER** restrito, `set search_path = ''`, objetos totalmente qualificados, sem SQL dinamico, sem `service_role` e sem leitura de `auth.users`.
+- Autorizacao explicita fail-closed: perfil ativo e `hospital_memberships.manage` por papel hospitalar OU organizacional (ativo, nao revogado), via funcoes `app_private` existentes; sem acesso por nome de papel e sem bypass de `platform_admin`.
+- Lock por hospital (`SELECT ... FOR UPDATE`) serializa mutacoes administrativas concorrentes no mesmo hospital; a checagem de ultimo administrador ocorre DEPOIS do lock, enxergando o estado consolidado. O lock foi comprovado estruturalmente; teste real de concorrencia nao foi executado.
+- Invariantes: auto-suspensao bloqueada (`self_suspension_forbidden`); o ultimo `hospital_admin` ativo nao pode ser suspenso (`last_admin_forbidden`); transicoes invalidas retornam `invalid_transition`.
+
+Auditoria transacional:
+
+- `public.administrative_audit_events` e append-only e SEM acesso direto da aplicacao: RLS habilitado sem policy permissiva e zero grants para `anon`/`authenticated`. A insercao ocorre exclusivamente dentro da RPC, na MESMA transacao da alteracao: qualquer falha reverte ambas; cancelamento e falha nao geram evento.
+- Constraint cruzada `administrative_audit_events_transition_consistency_check`: cada `event_type` aceita somente a transicao que descreve (`hospital_membership_suspended`: active->suspended; `hospital_membership_reactivated`: suspended->active). Qualquer outra combinacao falha, mesmo vinda de codigo privilegiado.
+
+Hardening RPC-only:
+
+- O `UPDATE (status)` direto de `authenticated` em `hospital_memberships`, concedido na Sprint 03A antes da existencia da RPC, foi REVOGADO, e a policy `hospital_memberships_update_allowed` foi REMOVIDA (migration complementar `20260714030000`).
+- A RPC e o UNICO caminho de alteracao de status de vinculo hospitalar. Nenhum grant novo foi concedido; SELECT/INSERT existentes, policies de leitura, RLS de outras tabelas, `organization_memberships` e as tabelas de papeis permanecem intocados.
+
+Interface:
+
+- `get_hospital_team` foi estendida com metadados de acao (`management_ref`, `can_suspend`, `can_reactivate`) expostos APENAS a quem possui manage; auditor recebe referencia nula e indicadores falsos. Indicadores sao orientacao de interface e nunca autorizam; a RPC revalida tudo.
+- A Server Action recebe do navegador SOMENTE `managementRef` e `requestedStatus` (Zod estrito); o hospital vem exclusivamente do contexto ativo revalidado. O componente cliente exige confirmacao explicita inline (Confirmar suspensao/reativacao + Cancelar) antes de qualquer envio; nenhuma mutacao ocorre sem confirmacao.
+- Nenhum e-mail, UUID, papel, permissao ou codigo cru trafega ou e exibido; mensagens de resultado sao genericas.
+
+Evidencia:
+
+- 59 verificacoes pgTAP no arquivo 009 (198 no total), incluindo: privilegios UPDATE zerados (tabela e coluna), ausencia de policy de UPDATE, rejeicao de INSERT incoerente na auditoria, RPC executavel somente por `authenticated` e auditoria sem privilegios diretos.
+- E2E em navegador real (Chromium headless via CDP, JavaScript e hidratacao reais): 35 verificacoes aprovadas, incluindo FormData minimo, cancelamento sem efeito, protecao do ultimo administrador refletida na interface, UPDATE direto via PostgREST negado (HTTP 403) e auditoria exata (1 evento por mutacao bem-sucedida, zero por cancelamento/falha, zero combinacoes inconsistentes).
+
+Motivo: permitir a primeira mutacao administrativa com o menor privilegio possivel e trilha de auditoria inviolavel, eliminando o caminho de escrita direta que dispensaria as invariantes (auto-suspensao, ultimo administrador, auditoria), sem confiar na interface, sem expor identificadores internos e sem antecipar as mutacoes mais sensiveis (papeis, revogacao, convites), que pertencem a 04C.3+ sob decisao propria.

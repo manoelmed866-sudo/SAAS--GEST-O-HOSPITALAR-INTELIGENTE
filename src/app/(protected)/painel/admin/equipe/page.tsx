@@ -5,6 +5,7 @@ import {
   type HospitalTeamMemberStatus,
   resolveActiveHospitalTeam,
 } from "@/lib/auth/hospital-team";
+import { TeamMemberControls } from "./team-member-controls";
 
 // Sprint 04C.1 - Equipe do hospital ativo (listagem somente leitura)
 //
@@ -16,11 +17,14 @@ import {
 // cookie, URL, query string ou form data, nao redireciona, nao usa notFound e
 // nao aceita hospitalId/organizationId.
 //
-// Escopo somente leitura:
-// Nenhum CRUD, formulario administrativo, Server Action de dominio ou botao de
-// mutacao. Nenhum e-mail, UUID, codigo de papel ou nome de capacidade e
-// exibido. O status interno do vinculo e traduzido para o usuario. As mutacoes
-// pertencem a Sprint 04C.2+.
+// Escopo administrativo (04C.2):
+// A lista permanece server-side; os UNICOS controles de mutacao sao suspensao
+// e reativacao de vinculo, renderizados pelo componente cliente
+// TeamMemberControls somente quando o servidor indicou a acao como possivel
+// (canSuspend/canReactivate) e sempre revalidados pela RPC. Nenhum e-mail,
+// UUID, codigo de papel ou nome de capacidade e exibido; a referencia opaca
+// nunca e impressa como texto. Nenhuma exclusao, revogacao, alteracao de
+// papel, convite ou criacao de conta.
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +60,14 @@ export default async function AdminTeamPage() {
                     <span className="team-member__roles">
                       {member.roleLabels.join(", ")}
                     </span>
+                  ) : null}
+                  {member.managementRef !== null &&
+                  (member.canSuspend || member.canReactivate) ? (
+                    <TeamMemberControls
+                      canReactivate={member.canReactivate}
+                      canSuspend={member.canSuspend}
+                      managementRef={member.managementRef}
+                    />
                   ) : null}
                 </li>
               ))}

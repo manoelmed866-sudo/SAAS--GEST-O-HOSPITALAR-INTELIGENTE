@@ -10,7 +10,7 @@ Sprint 04A: Concluida.
 
 Sprint 04B: Concluida.
 
-Sprint 04C: Em andamento (04C.1 concluida; 04C.2 nao iniciada).
+Sprint 04C: Em andamento (04C.1 e 04C.2 concluidas; 04C.3 nao iniciada).
 
 Sprint 04D e 04E: nao iniciadas.
 
@@ -155,11 +155,51 @@ Registrado sem credenciais, UUIDs, e-mails ou tokens: fluxo HTTP real com tres p
 
 ### C2.F. Proxima subfase
 
-- 04C.2 (nao iniciada): mutacoes de vinculo (suspender/reativar), invariantes de ultimo administrador e trilha de auditoria administrativa, sob nova decisao.
+- 04C.2 (concluida nesta sprint, ver secao C3): mutacoes de vinculo (suspender/reativar), invariantes de ultimo administrador e trilha de auditoria administrativa.
+
+## C3. Sprint 04C.2 concluida
+
+### C3.A. Objetivo
+
+- Primeiras mutacoes administrativas reais: suspensao (`active -> suspended`) e reativacao (`suspended -> active`) de vinculos hospitalares, com trilha de auditoria transacional. `pending` e `revoked` fora do escopo (`revoked` terminal). Nenhuma exclusao, revogacao, alteracao de papel, convite ou criacao de conta.
+
+### C3.B. Banco (DEC-057)
+
+- Referencia publica opaca `hospital_memberships.management_ref` (128 bits, 32 hex, `gen_random_bytes`, unique + check): o UUID interno nunca trafega em HTML ou FormData; a referencia nao autoriza e a RPC revalida tudo.
+- Tabela append-only `public.administrative_audit_events` SEM acesso direto da aplicacao (RLS habilitado sem policy permissiva, zero grants); insercao exclusivamente dentro da RPC, na MESMA transacao da alteracao; constraint cruzada de consistencia evento/transicao (`administrative_audit_events_transition_consistency_check`).
+- RPC unica `public.change_hospital_membership_status(uuid, text, text)`, `plpgsql`, `volatile`, **SECURITY DEFINER** restrito, `set search_path = ''`: autorizacao explicita fail-closed (`hospital_memberships.manage` por escopo hospitalar OU organizacional, sem bypass de platform_admin), lock por hospital com checagem de ultimo administrador APOS o lock, auto-suspensao bloqueada, alvo por referencia opaca sem enumeracao. `EXECUTE` somente para `authenticated`.
+- Hardening RPC-only (migration `20260714030000`): `UPDATE (status)` de `authenticated` em `hospital_memberships` revogado e policy `hospital_memberships_update_allowed` removida; a RPC e o unico caminho de alteracao de status. `organization_memberships` e tabelas de papeis intocadas; nenhum grant novo.
+- `get_hospital_team` estendida com `management_ref`, `can_suspend` e `can_reactivate` apenas para quem possui manage; auditor recebe referencia nula e indicadores falsos.
+
+### C3.C. Aplicacao
+
+- Server Action `changeMembershipStatusAction`: recebe SOMENTE `managementRef` + `requestedStatus` (Zod estrito); exige `canManageMemberships`; o hospital vem exclusivamente do contexto ativo revalidado; mensagens genericas.
+- Componente cliente `TeamMemberControls`: renderiza apenas a acao indicada pelo servidor e exige confirmacao explicita inline (Confirmar suspensao/reativacao + Cancelar) antes de submeter.
+
+### C3.D. Testes
+
+- `supabase/tests/009-sprint-04c2-membership-mutations.test.sql`: 59 verificacoes pgTAP (estrutura, grants, hardening de privilegios/policy, constraint de consistencia, autorizacao, isolamento, anti-enumeracao, transicoes, auto-suspensao, ultimo administrador, auditoria transacional e metadados de acao).
+- `tests/unit/team-membership-actions.test.ts` e `tests/unit/team-member-controls.test.tsx` novos; `auth-hospital-team`, `auth-admin-team-page` e testes estaticos atualizados.
+- Totais: 368 testes unitarios e 198 verificacoes pgTAP aprovados.
+
+### C3.E. E2E em navegador real
+
+Registrado sem credenciais, UUIDs, e-mails, tokens ou management_ref: Chromium headless dirigido via CDP (JavaScript, hidratacao, `useActionState` e `revalidatePath` reais; sem dependencia nova), 35 verificacoes aprovadas:
+
+- Member: acesso direto negado com estado generico, sem lista, sem botoes, sem dados internos no HTML.
+- Auditor: lista visivel sem nenhum botao de mutacao, confirmacao, formulario ou referencia opaca no HTML.
+- Admin: acoes coerentes por estado (active -> Suspender; suspended -> Reativar; pending sem acao; self sem suspensao; segundo admin suspensivel); nenhum excluir/remover/revogar/alterar papel.
+- FormData inspecionado no navegador: somente `managementRef` (32 hex, nao UUID) e `requestedStatus`, alem dos metadados internos do Next.js; nenhum campo proibido.
+- Cancelamento sem mutacao e sem evento; suspensao e reativacao com mensagem de sucesso, status e botao atualizados; ultimo administrador protegido tambem na interface apos suspensao do segundo admin (reativado ao final).
+- UPDATE direto via PostgREST negado (HTTP 403) mesmo para admin autenticado.
+- Auditoria conferida no banco: exatamente 1 evento por mutacao bem-sucedida (4 no total), ator/hospital/alvo/event_type/estados/timestamp corretos, zero eventos de cancelamento ou falha, zero combinacoes inconsistentes. Lock comprovado estruturalmente; teste real de concorrencia nao foi executado.
+- Logout com retorno ao login e `/painel` reprotegido; fixtures integralmente removidas com contagens zeradas.
+
+Decisao registrada em `DECISIONS.md` como DEC-057.
 
 ## D. Limitacoes conscientes
 
-- A rota administrativa lista a equipe em modo somente leitura; as mutacoes de vinculo e papeis pertencem a 04C.2+, ainda nao iniciada.
+- As mutacoes administrativas estao restritas a suspensao e reativacao de vinculos; papeis, revogacao, convites e criacao de contas pertencem a 04C.3+, ainda nao iniciada.
 - "Trocar hospital" nao e condicionado a `canSwitchContext` nesta etapa; condicionar a troca fica para decisao futura especifica.
 - Nao ha categorias profissionais (medico, enfermeiro e afins nao sao papeis nesta etapa).
 - Nao ha expiracao temporal de vinculo; suspensao e revogacao sao tratadas por `status` e `revoked_at`.
@@ -170,7 +210,7 @@ Registrado sem credenciais, UUIDs, e-mails ou tokens: fluxo HTTP real com tres p
 
 Sem detalhamento de implementacao nesta etapa:
 
-- 04C.2: mutacoes de vinculo com invariantes e auditoria administrativa (ainda nao iniciada).
+- 04C.3: gestao de papeis, convites e demais mutacoes administrativas (ainda nao iniciada).
 - 04D: gestao de papeis e permissoes.
 - 04E: design system autenticado e workspaces iniciais.
 

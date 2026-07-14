@@ -19,6 +19,12 @@ vi.mock("@/app/(auth)/actions", () => ({
   logoutAction: mocks.logoutAction,
 }));
 
+// A action de mutacao e mockada para que o componente cliente de controles
+// nao importe dependencias de servidor durante o render da pagina.
+vi.mock("@/app/(protected)/painel/admin/equipe/actions", () => ({
+  changeMembershipStatusAction: vi.fn(),
+}));
+
 // Esta suite exercita a pagina /painel/admin/equipe da Sprint 04C.1 (listagem
 // somente leitura). A decisao allowed/denied e a listagem vem exclusivamente
 // de resolveActiveHospitalTeam; a pagina nunca consulta capacidades, gate ou
@@ -35,21 +41,74 @@ const ACTIVE_CONTEXT = {
   hospitalDisplayName: "Hospital Alfa",
 };
 
+// Equipe vista por um leitor SEM gestao (ex.: auditor): refs nulas e
+// indicadores falsos -> nenhum controle de mutacao renderizado.
 const TEAM = [
   {
     displayName: "Dra. Ana Ficticia",
     membershipStatus: "active" as const,
     roleLabels: ["Administrador hospitalar", "Membro hospitalar"],
+    managementRef: null,
+    canSuspend: false,
+    canReactivate: false,
   },
   {
     displayName: "Dr. Bruno Ficticio",
     membershipStatus: "suspended" as const,
     roleLabels: ["Membro hospitalar"],
+    managementRef: null,
+    canSuspend: false,
+    canReactivate: false,
   },
   {
     displayName: "Enf. Clara Ficticia",
     membershipStatus: "pending" as const,
     roleLabels: [],
+    managementRef: null,
+    canSuspend: false,
+    canReactivate: false,
+  },
+];
+
+const REF_ACTIVE = "aaaa0000000000000000000000000001";
+const REF_SUSPENDED = "aaaa0000000000000000000000000002";
+const REF_PENDING = "aaaa0000000000000000000000000003";
+const REF_SELF = "aaaa0000000000000000000000000004";
+
+// Equipe vista por um administrador com gestao: as acoes seguem os
+// indicadores do servidor (pending, o proprio ator e o ultimo admin sem acao).
+const TEAM_WITH_ACTIONS = [
+  {
+    displayName: "Dra. Ana Ficticia",
+    membershipStatus: "active" as const,
+    roleLabels: ["Membro hospitalar"],
+    managementRef: REF_ACTIVE,
+    canSuspend: true,
+    canReactivate: false,
+  },
+  {
+    displayName: "Dr. Bruno Ficticio",
+    membershipStatus: "suspended" as const,
+    roleLabels: ["Membro hospitalar"],
+    managementRef: REF_SUSPENDED,
+    canSuspend: false,
+    canReactivate: true,
+  },
+  {
+    displayName: "Enf. Clara Ficticia",
+    membershipStatus: "pending" as const,
+    roleLabels: [],
+    managementRef: REF_PENDING,
+    canSuspend: false,
+    canReactivate: false,
+  },
+  {
+    displayName: "Dr. Ultimo Admin Ficticio",
+    membershipStatus: "active" as const,
+    roleLabels: ["Administrador hospitalar"],
+    managementRef: REF_SELF,
+    canSuspend: false,
+    canReactivate: false,
   },
 ];
 
@@ -96,7 +155,9 @@ function expectNoMutationControls() {
   for (const control of MUTATION_CONTROLS) {
     expect(screen.queryByRole("button", { name: control })).toBeNull();
   }
-  expect(document.querySelector("input, select, textarea")).toBeNull();
+  expect(
+    document.querySelector('input:not([type="hidden"]), select, textarea'),
+  ).toBeNull();
 }
 
 describe("pagina /painel/admin/equipe (Sprint 04C.1)", () => {
@@ -161,6 +222,38 @@ describe("pagina /painel/admin/equipe (Sprint 04C.1)", () => {
     ).toHaveAttribute("href", "/painel");
     expect(screen.getByRole("button", { name: /sair/i })).toBeInTheDocument();
     expectNoMutationControls();
+    expectNoLeakedTokens();
+  });
+
+  it("gestor: acoes seguem os indicadores do servidor e a ref nunca vira texto", async () => {
+    mocks.resolveActiveHospitalTeam.mockResolvedValueOnce({
+      status: "allowed",
+      context: ACTIVE_CONTEXT,
+      members: TEAM_WITH_ACTIONS,
+    });
+
+    await renderTeamPage();
+
+    // Um unico Suspender (membro active elegivel) e um unico Reativar
+    // (vinculo suspended); pending, proprio ator e ultimo admin sem acao.
+    expect(
+      screen.getAllByRole("button", { name: "Suspender vínculo" }),
+    ).toHaveLength(1);
+    expect(
+      screen.getAllByRole("button", { name: "Reativar vínculo" }),
+    ).toHaveLength(1);
+    // Nenhuma acao proibida (excluir, remover, revogar, papel, convite).
+    expect(
+      screen.queryByRole("button", {
+        name: /excluir|remover|revogar|papel|convidar|adicionar|salvar|editar/i,
+      }),
+    ).not.toBeInTheDocument();
+    // A referencia opaca nunca e impressa como texto visivel.
+    const bodyText = document.body.textContent ?? "";
+    expect(bodyText).not.toContain(REF_ACTIVE);
+    expect(bodyText).not.toContain(REF_SUSPENDED);
+    expect(bodyText).not.toContain(REF_PENDING);
+    expect(bodyText).not.toContain(REF_SELF);
     expectNoLeakedTokens();
   });
 

@@ -32,6 +32,12 @@ export type HospitalTeamMember = {
   displayName: string;
   membershipStatus: HospitalTeamMemberStatus;
   roleLabels: string[];
+  // Referencia publica opaca (32 hex, nunca UUID) para acoes administrativas;
+  // nula para quem possui apenas leitura. Os indicadores can* sao orientacao
+  // de interface: a RPC de mutacao revalida tudo no servidor.
+  managementRef: string | null;
+  canSuspend: boolean;
+  canReactivate: boolean;
 };
 
 export type HospitalTeamResult =
@@ -52,6 +58,13 @@ const teamMemberRowSchema = z
     display_name: z.string().min(1),
     membership_status: z.enum(["active", "suspended", "pending"]),
     role_labels: z.array(z.string().min(1)),
+    // 32 hex minusculos: formato opaco que jamais coincide com UUID.
+    management_ref: z
+      .string()
+      .regex(/^[0-9a-f]{32}$/)
+      .nullable(),
+    can_suspend: z.boolean(),
+    can_reactivate: z.boolean(),
   })
   .strict();
 
@@ -93,6 +106,9 @@ export async function resolveActiveHospitalTeam(): Promise<HospitalTeamResult> {
       displayName: row.display_name,
       membershipStatus: row.membership_status,
       roleLabels: row.role_labels,
+      managementRef: row.management_ref,
+      canSuspend: row.can_suspend,
+      canReactivate: row.can_reactivate,
     })),
   };
 }

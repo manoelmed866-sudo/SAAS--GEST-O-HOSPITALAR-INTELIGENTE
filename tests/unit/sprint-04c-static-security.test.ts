@@ -36,9 +36,14 @@ function countMatches(source: string, pattern: RegExp): number {
 
 const MIGRATION =
   "supabase/migrations/20260714010000_sprint_04c_hospital_team_listing.sql";
+const MIGRATION_04C2 =
+  "supabase/migrations/20260714020000_sprint_04c2_membership_mutations.sql";
 const RESOLVER = "src/lib/auth/hospital-team.ts";
 const PANEL = "src/app/(protected)/painel/page.tsx";
 const ADMIN = "src/app/(protected)/painel/admin/equipe/page.tsx";
+const TEAM_ACTIONS = "src/app/(protected)/painel/admin/equipe/actions.ts";
+const TEAM_CONTROLS =
+  "src/app/(protected)/painel/admin/equipe/team-member-controls.tsx";
 
 describe("Sprint 04C - migration da listagem da equipe", () => {
   const migration = stripSqlComments(readRaw(MIGRATION));
@@ -157,9 +162,17 @@ describe("Sprint 04C - resolver server-side da equipe", () => {
     expect(resolver).toMatch(/role_labels:\s*z\.array\(z\.string\(\)\.min\(1\)\)/);
     expect(resolver).not.toMatch(/email/i);
     expect(resolver).not.toMatch(/profileId|userId|user_id/);
-    // O contrato de membro expoe apenas tres campos.
+    // O contrato de membro expoe os tres campos de leitura e os metadados de
+    // acao da 04C.2 (referencia opaca nullable e dois indicadores booleanos).
     expect(resolver).toMatch(
       /displayName:\s*string;\s*membershipStatus:\s*HospitalTeamMemberStatus;\s*roleLabels:\s*string\[\];/,
+    );
+    expect(resolver).toMatch(/managementRef:\s*string \| null;/);
+    expect(resolver).toMatch(/canSuspend:\s*boolean;/);
+    expect(resolver).toMatch(/canReactivate:\s*boolean;/);
+    // A referencia opaca so e aceita no formato 32 hex, nunca UUID.
+    expect(resolver).toMatch(
+      /management_ref:\s*z\s*\.string\(\)\s*\.regex\(\/\^\[0-9a-f\]\{32\}\$\/\)\s*\.nullable\(\)/,
     );
   });
 });
@@ -230,5 +243,154 @@ describe("Sprint 04C - pagina da equipe", () => {
     expect(admin).toMatch(/Sem permissão para visualizar a equipe/);
     expect(admin).toMatch(/Não foi possível carregar a equipe/);
     expect(admin).toMatch(/action=\{logoutAction\}/);
+  });
+});
+
+describe("Sprint 04C.2 - migration de mutacao com auditoria", () => {
+  const migration = stripSqlComments(readRaw(MIGRATION_04C2));
+
+  it("referencia opaca gerada no banco, unica e nunca UUID", () => {
+    expect(migration).toMatch(/add column management_ref text not null/);
+    expect(migration).toMatch(
+      /default encode\(extensions\.gen_random_bytes\(16\), 'hex'\)/,
+    );
+    expect(migration).toMatch(/hospital_memberships_management_ref_unique unique \(management_ref\)/);
+    expect(migration).toMatch(/check \(management_ref ~ '\^\[0-9a-f\]\{32\}\$'\)/);
+  });
+
+  it("auditoria append-only sem acesso direto da aplicacao", () => {
+    expect(migration).toMatch(/create table public\.administrative_audit_events/);
+    expect(migration).toMatch(
+      /alter table public\.administrative_audit_events enable row level security/,
+    );
+    expect(migration).toMatch(
+      /revoke all on table public\.administrative_audit_events from public, anon, authenticated/,
+    );
+    // Nenhuma policy e nenhum grant de tabela na migration.
+    expect(migration).not.toMatch(/create policy/i);
+    expect(migration).not.toMatch(/grant (select|insert|update|delete)/i);
+    expect(migration).toMatch(
+      /event_type in \('hospital_membership_suspended', 'hospital_membership_reactivated'\)/,
+    );
+  });
+
+  it("RPC de mutacao: DEFINER, VOLATILE, search_path vazio, lock e mesma transacao", () => {
+    expect(migration).toMatch(
+      /create or replace function public\.change_hospital_membership_status\(/,
+    );
+    expect(migration).toMatch(/language plpgsql\s*volatile\s*security definer\s*set search_path = ''/);
+    expect(countMatches(migration, /for update of h;/g)).toBe(1);
+    expect(countMatches(migration, /for update of hm;/g)).toBe(1);
+    // Alteracao e auditoria dentro da MESMA funcao/transacao.
+    const fnBody = migration.slice(
+      migration.indexOf("change_hospital_membership_status"),
+      migration.indexOf("drop function public.get_hospital_team"),
+    );
+    expect(fnBody).toMatch(/update public\.hospital_memberships/);
+    expect(fnBody).toMatch(/insert into public\.administrative_audit_events/);
+    // Sem SQL dinamico, sem service_role, sem auth.users, sem DELETE.
+    expect(migration).not.toMatch(/execute format/i);
+    expect(migration).not.toMatch(/service[_-]?role/i);
+    expect(migration).not.toMatch(/auth\.users/);
+    expect(migration).not.toMatch(/\bdelete from\b/i);
+  });
+
+  it("autorizacao explicita por manage, invariantes e sem bypass", () => {
+    expect(migration).toMatch(/'hospital_memberships\.manage'/);
+    expect(migration).not.toMatch(/current_user_is_platform_admin/);
+    expect(migration).toMatch(/self_suspension_forbidden/);
+    expect(migration).toMatch(/last_admin_forbidden/);
+    expect(migration).toMatch(/invalid_transition/);
+    expect(migration).toMatch(/not_allowed/);
+    // Sem revogacao: o dominio aceito e apenas active/suspended.
+    expect(migration).toMatch(
+      /requested_status not in \('active', 'suspended'\)/,
+    );
+    // EXECUTE restrito.
+    expect(migration).toMatch(
+      /grant execute on function public\.change_hospital_membership_status\(uuid, text, text\) to authenticated/,
+    );
+    expect(migration).toMatch(
+      /revoke execute on function public\.change_hospital_membership_status\(uuid, text, text\) from anon/,
+    );
+  });
+
+  it("get_hospital_team estendida devolve metadados sem UUID e sem e-mail", () => {
+    expect(migration).toMatch(
+      /returns table \(\s*display_name text,\s*membership_status text,\s*role_labels text\[\],\s*management_ref text,\s*can_suspend boolean,\s*can_reactivate boolean\s*\)/,
+    );
+    expect(migration).toMatch(
+      /case when cm\.can_manage then hm\.management_ref else null end/,
+    );
+    expect(migration).not.toMatch(/\bemail\b/i);
+  });
+});
+
+describe("Sprint 04C.2 - Server Action de mutacao", () => {
+  const action = readStripped(TEAM_ACTIONS);
+
+  it("recebe somente managementRef e requestedStatus, validados por Zod", () => {
+    expect(action).toMatch(/managementRef:\s*z\.string\(\)\.regex\(\/\^\[0-9a-f\]\{32\}\$\/\)/);
+    expect(action).toMatch(/requestedStatus:\s*z\.enum\(\["suspended", "active"\]\)/);
+    // Nada alem da referencia e do estado vem do formulario.
+    expect(countMatches(action, /getStringField\(formData,/g)).toBe(2);
+    expect(action).not.toMatch(/formData\.get\("(hospitalId|organizationId|role|permission|actorId)"\)/);
+  });
+
+  it("hospital vem so do contexto; capacidade manage exigida antes da RPC", () => {
+    expect(countMatches(action, /resolveActiveHospitalCapabilities\(\)/g)).toBe(1);
+    expect(action).toMatch(/canManageMemberships/);
+    expect(action).toMatch(
+      /target_hospital_id:\s*capabilities\.context\.hospitalId/,
+    );
+    expect(countMatches(action, /\.rpc\(/g)).toBe(1);
+    expect(action).toMatch(/change_hospital_membership_status/);
+  });
+
+  it("nao acessa infraestrutura proibida nem redireciona", () => {
+    expect(action).not.toMatch(/\.from\(/);
+    expect(action).not.toMatch(/service[_-]?role/i);
+    expect(action).not.toMatch(/auth\.users/);
+    expect(action).not.toMatch(/\bredirect\b/);
+    expect(action).not.toMatch(/notFound/);
+    expect(action).not.toMatch(/readContextCookie|cookies\s*\(/);
+  });
+
+  it("revalida a pagina somente no sucesso e mapeia todos os outcomes", () => {
+    expect(countMatches(action, /revalidatePath\("\/painel\/admin\/equipe"\)/g)).toBe(1);
+    expect(action).toMatch(/case "updated":/);
+    expect(action).toMatch(/case "self_suspension_forbidden":/);
+    expect(action).toMatch(/case "last_admin_forbidden":/);
+    expect(action).toMatch(/case "invalid_transition":/);
+    expect(action).toMatch(/case "not_allowed":/);
+  });
+});
+
+describe("Sprint 04C.2 - componente de controles", () => {
+  const controls = readStripped(TEAM_CONTROLS);
+
+  it("envia somente a referencia opaca e o estado solicitado", () => {
+    expect(controls).toMatch(/name="managementRef"/);
+    expect(controls).toMatch(/name="requestedStatus"/);
+    expect(countMatches(controls, /<input/g)).toBe(2);
+    expect(controls).toMatch(/type="hidden"/);
+    expect(controls).not.toMatch(/hospitalId|organizationId/);
+    // role= como atributo ARIA e permitido; papel/permissao como dado, nao.
+    expect(controls).not.toMatch(/\brole\b(?!=")/i);
+    expect(controls).not.toMatch(/\bpermission\b/i);
+    expect(controls).not.toMatch(
+      /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/,
+    );
+  });
+
+  it("confirmacao explicita inline, sem window.confirm e sem acoes proibidas", () => {
+    expect(controls).toMatch(/Confirmar suspensão/);
+    expect(controls).toMatch(/Confirmar reativação/);
+    expect(controls).toMatch(/Cancelar/);
+    expect(controls).not.toMatch(/window\.confirm/);
+    expect(controls).not.toMatch(/excluir|remover|revogar|convidar|adicionar|salvar/i);
+    // Somente as duas acoes desta etapa.
+    expect(controls).toMatch(/Suspender vínculo/);
+    expect(controls).toMatch(/Reativar vínculo/);
   });
 });

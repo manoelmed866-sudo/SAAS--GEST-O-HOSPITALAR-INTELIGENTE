@@ -55,10 +55,15 @@ async function importResolver() {
   return mod.resolveActiveHospitalTeam;
 }
 
+const MANAGEMENT_REF = "0123456789abcdef0123456789abcdef";
+
 const MEMBER_ROW = {
   display_name: "Dra. Ana Ficticia",
   membership_status: "active",
   role_labels: ["Administrador hospitalar"],
+  management_ref: MANAGEMENT_REF,
+  can_suspend: true,
+  can_reactivate: false,
 };
 
 describe("resolveActiveHospitalTeam - propagacao sem RPC", () => {
@@ -159,23 +164,32 @@ describe("resolveActiveHospitalTeam - caminho allowed", () => {
           displayName: "Dra. Ana Ficticia",
           membershipStatus: "active",
           roleLabels: ["Administrador hospitalar"],
+          managementRef: MANAGEMENT_REF,
+          canSuspend: true,
+          canReactivate: false,
         },
       ],
     });
   });
 
-  it("mapeia membro suspended e pending com multiplos rotulos", async () => {
+  it("mapeia membro suspended e pending com multiplos rotulos e metadados de acao", async () => {
     configureRpc({
       data: [
         {
           display_name: "Dr. Bruno Ficticio",
           membership_status: "suspended",
           role_labels: ["Auditor hospitalar", "Membro hospitalar"],
+          management_ref: MANAGEMENT_REF,
+          can_suspend: false,
+          can_reactivate: true,
         },
         {
           display_name: "Enf. Clara Ficticia",
           membership_status: "pending",
           role_labels: [],
+          management_ref: null,
+          can_suspend: false,
+          can_reactivate: false,
         },
       ],
       error: null,
@@ -192,13 +206,43 @@ describe("resolveActiveHospitalTeam - caminho allowed", () => {
         displayName: "Dr. Bruno Ficticio",
         membershipStatus: "suspended",
         roleLabels: ["Auditor hospitalar", "Membro hospitalar"],
+        managementRef: MANAGEMENT_REF,
+        canSuspend: false,
+        canReactivate: true,
       },
       {
         displayName: "Enf. Clara Ficticia",
         membershipStatus: "pending",
         roleLabels: [],
+        managementRef: null,
+        canSuspend: false,
+        canReactivate: false,
       },
     ]);
+  });
+
+  it("leitor sem gestao (auditor) recebe managementRef nula e indicadores falsos", async () => {
+    configureRpc({
+      data: [
+        {
+          ...MEMBER_ROW,
+          management_ref: null,
+          can_suspend: false,
+          can_reactivate: false,
+        },
+      ],
+      error: null,
+    });
+    const resolve = await importResolver();
+
+    const result = await resolve();
+
+    if (result.status !== "allowed") {
+      throw new Error("esperava allowed");
+    }
+    expect(result.members[0].managementRef).toBeNull();
+    expect(result.members[0].canSuspend).toBe(false);
+    expect(result.members[0].canReactivate).toBe(false);
   });
 
   it("devolve exatamente o ActiveContext revalidado", async () => {
@@ -245,6 +289,30 @@ describe("resolveActiveHospitalTeam - fail-closed na resposta da RPC", () => {
       data: [{ display_name: "Fulano", membership_status: "active" }],
       error: null,
     });
+    const resolve = await importResolver();
+
+    expect(await resolve()).toEqual({ status: "error" });
+  });
+
+  it("management_ref em formato UUID -> error (referencia deve ser opaca)", async () => {
+    configureRpc({
+      data: [
+        {
+          ...MEMBER_ROW,
+          management_ref: "33333333-3333-4333-8333-333333333333",
+        },
+      ],
+      error: null,
+    });
+    const resolve = await importResolver();
+
+    expect(await resolve()).toEqual({ status: "error" });
+  });
+
+  it("metadado de acao ausente -> error", async () => {
+    const rowWithoutFlag: Partial<typeof MEMBER_ROW> = { ...MEMBER_ROW };
+    delete rowWithoutFlag.can_reactivate;
+    configureRpc({ data: [rowWithoutFlag], error: null });
     const resolve = await importResolver();
 
     expect(await resolve()).toEqual({ status: "error" });
