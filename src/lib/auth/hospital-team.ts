@@ -28,6 +28,13 @@ import { createClient } from "@/lib/supabase/server";
 
 export type HospitalTeamMemberStatus = "active" | "suspended" | "pending";
 
+export type HospitalTeamAssignedRole = {
+  label: string;
+  // Referencia publica opaca do papel (32 hex, nunca UUID e nunca role.code).
+  roleRef: string;
+  canRevoke: boolean;
+};
+
 export type HospitalTeamMember = {
   displayName: string;
   membershipStatus: HospitalTeamMemberStatus;
@@ -38,6 +45,14 @@ export type HospitalTeamMember = {
   managementRef: string | null;
   canSuspend: boolean;
   canReactivate: boolean;
+  // Papeis administraveis do integrante (somente para quem possui manage);
+  // null para quem possui apenas leitura.
+  assignedRoles: HospitalTeamAssignedRole[] | null;
+};
+
+export type HospitalAssignableRole = {
+  label: string;
+  roleRef: string;
 };
 
 export type HospitalTeamResult =
@@ -45,14 +60,28 @@ export type HospitalTeamResult =
       status: "allowed";
       context: ActiveContext;
       members: HospitalTeamMember[];
+      // Catalogo hospitalar minimo atribuivel (somente para quem possui
+      // manage); null para quem possui apenas leitura.
+      assignableRoles: HospitalAssignableRole[] | null;
     }
   | { status: "denied"; context: ActiveContext }
   | { status: "absent" }
   | { status: "invalid" }
   | { status: "error" };
 
-// Schema estrito de cada linha da RPC: exatamente tres campos, status no enum
-// fechado, nome e rotulos nao vazios.
+const OPAQUE_REF_PATTERN = /^[0-9a-f]{32}$/;
+
+const assignedRoleSchema = z
+  .object({
+    label: z.string().min(1),
+    roleRef: z.string().regex(OPAQUE_REF_PATTERN),
+    canRevoke: z.boolean(),
+  })
+  .strict();
+
+// Schema estrito de cada linha da RPC: status no enum fechado, nome e rotulos
+// nao vazios, referencias opacas de 32 hex e papeis administraveis somente
+// para quem gerencia.
 const teamMemberRowSchema = z
   .object({
     display_name: z.string().min(1),
@@ -61,14 +90,24 @@ const teamMemberRowSchema = z
     // 32 hex minusculos: formato opaco que jamais coincide com UUID.
     management_ref: z
       .string()
-      .regex(/^[0-9a-f]{32}$/)
+      .regex(OPAQUE_REF_PATTERN)
       .nullable(),
     can_suspend: z.boolean(),
     can_reactivate: z.boolean(),
+    assigned_roles: z.array(assignedRoleSchema).nullable(),
   })
   .strict();
 
 const teamResponseSchema = z.array(teamMemberRowSchema);
+
+const assignableRoleRowSchema = z
+  .object({
+    role_label: z.string().min(1),
+    role_ref: z.string().regex(OPAQUE_REF_PATTERN),
+  })
+  .strict();
+
+const assignableRolesResponseSchema = z.array(assignableRoleRowSchema);
 
 export async function resolveActiveHospitalTeam(): Promise<HospitalTeamResult> {
   const result = await resolveActiveHospitalCapabilities();
@@ -98,6 +137,31 @@ export async function resolveActiveHospitalTeam(): Promise<HospitalTeamResult> {
     return { status: "error" };
   }
 
+  // Catalogo atribuivel somente para quem gerencia; a RPC revalida a
+  // permissao internamente e leitores recebem null (nunca lista parcial).
+  let assignableRoles: HospitalAssignableRole[] | null = null;
+
+  if (result.capabilities.canManageMemberships) {
+    const catalog = await supabase.rpc("get_hospital_assignable_roles", {
+      target_hospital_id: result.context.hospitalId,
+    });
+
+    if (catalog.error) {
+      return { status: "error" };
+    }
+
+    const parsedCatalog = assignableRolesResponseSchema.safeParse(catalog.data);
+
+    if (!parsedCatalog.success) {
+      return { status: "error" };
+    }
+
+    assignableRoles = parsedCatalog.data.map((row) => ({
+      label: row.role_label,
+      roleRef: row.role_ref,
+    }));
+  }
+
   return {
     status: "allowed",
     // Devolve o mesmo ActiveContext ja revalidado sob RLS.
@@ -109,6 +173,8 @@ export async function resolveActiveHospitalTeam(): Promise<HospitalTeamResult> {
       managementRef: row.management_ref,
       canSuspend: row.can_suspend,
       canReactivate: row.can_reactivate,
+      assignedRoles: row.assigned_roles,
     })),
+    assignableRoles,
   };
 }

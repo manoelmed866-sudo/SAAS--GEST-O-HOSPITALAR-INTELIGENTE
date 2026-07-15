@@ -4,15 +4,17 @@
 
 ## Estado do documento
 
-Sprint 04: Em andamento.
+Sprint 04: CONCLUIDA FUNCIONALMENTE (2026-07-15), aguardando merge posterior na main.
 
 Sprint 04A: Concluida.
 
 Sprint 04B: Concluida.
 
-Sprint 04C: Em andamento (04C.1 e 04C.2 concluidas; 04C.3 nao iniciada).
+Sprint 04C: Concluida (04C.1, 04C.2 e o fechamento com gestao de papeis).
 
-Sprint 04D e 04E: nao iniciadas.
+Fechamento (secao C4): gestao de papeis hospitalares por RPC auditada, DEC-058.
+
+Diferidos com registro: administracao de identidade/convites (Sprint propria), vinculo de perfil existente, governanca visual avancada e workspaces (trilha futura).
 
 Este documento registra o planejamento e a execucao controlada da Sprint 04, iniciada apos a integracao da Sprint 03 na `main`. A Sprint 04A entregou exclusivamente o contrato SQL de capacidades efetivas do hospital ativo e seu consumidor server-side, sem interface, sem CRUD, sem modulo clinico e sem consumo visual das capacidades. A Sprint 04B entregou o primeiro consumo dessas capacidades: navegacao condicional no painel, gate server-side reutilizavel e rota administrativa demonstrativa protegida no servidor, ainda sem CRUD.
 
@@ -197,9 +199,44 @@ Registrado sem credenciais, UUIDs, e-mails, tokens ou management_ref: Chromium h
 
 Decisao registrada em `DECISIONS.md` como DEC-057.
 
+## C4. Fechamento da Sprint 04 - gestao de papeis hospitalares (DEC-058)
+
+### C4.A. Objetivo
+
+- Concluir funcionalmente Administracao e Governanca: atribuir, revogar e reatribuir papeis hospitalares EXISTENTES no hospital ativo, fechando o ultimo caminho de mutacao direta. Sem criacao/edicao de roles ou permissions; sem papeis organizacionais ou de plataforma.
+
+### C4.B. Banco
+
+- `roles.management_ref`: referencia publica opaca de 128 bits (unique + check), mesmo padrao da DEC-057; ids internos de papel nunca trafegam.
+- Hardening RPC-only de `hospital_membership_roles`: INSERT/UPDATE/DELETE de `authenticated` revogados (tabela e colunas) e policies de mutacao removidas; SELECT preservado. `organization_membership_roles`, `platform_role_assignments` e catalogos intocados.
+- Auditoria administrativa estendida na PROPRIA tabela: eventos `hospital_role_assigned`/`hospital_role_revoked`, coluna opcional `target_role_id` e constraint cruzada ampliada (vinculo sem papel; papel obrigatorio e transicoes coerentes). Append-only, RLS fechado, mesma transacao.
+- RPC unica `public.change_hospital_membership_role(uuid, text, text, text)`: SECURITY DEFINER restrito, `search_path` vazio, lock por hospital, manage fail-closed sem bypass, anti-enumeracao (alvo e papel por refs opacas), assign com reativacao da linha revogada (sem duplicata), revoke somente de atribuicao ativa, `self_admin_role_forbidden` e `last_admin_forbidden` (apos o lock; admin com multiplos papeis continua admin).
+- `get_hospital_assignable_roles(uuid)`: catalogo hospitalar minimo (rotulo + ref), manage-only. `get_hospital_team` com `assigned_roles` (label/roleRef/canRevoke) somente para gestores.
+
+### C4.C. Aplicacao
+
+- Server Action `changeMembershipRoleAction`: Zod estrito (`membershipRef`, `roleRef`, `requestedAction`); hospital exclusivamente do contexto ativo; cinco outcomes mapeados; revalidacao somente em sucesso.
+- `TeamRoleControls`: revogacao por papel com `canRevoke`, select do catalogo excluindo papeis ja ativos, confirmacao explicita inline e cancelamento sem mutacao. Auditor sem controles; member sem acesso.
+
+### C4.D. Testes
+
+- `supabase/tests/010-sprint-04-role-management.test.sql`: 67 pgTAP (refs, hardening, auditoria estendida, RPC, isolamentos, invariantes, catalogo, mutacao direta negada).
+- Novos `team-role-actions.test.ts`, `team-role-controls.test.tsx`, `sprint-04-role-static-security.test.ts`; suites 008/04b/04c e resolver/pagina atualizadas legitimamente.
+- Totais: 406 testes unitarios e 265 verificacoes pgTAP aprovados.
+
+### C4.E. E2E em navegador real
+
+Chromium headless via CDP (mesmo padrao da 04C.2, sem dependencia nova), 26 verificacoes, sem imprimir segredos/refs/UUIDs/e-mails: member sem acesso; auditor com lista e papeis, sem controles nem referencias; admin atribui e revoga com confirmacao (papel aparece/desaparece nos rotulos), cancelamento sem mutacao, auto-revogacao indisponivel; organization_admin revoga um de dois admins, ultimo admin protegido na interface e estado restaurado; FormData minimo (somente as duas refs e a acao); INSERT/UPDATE diretos via PostgREST negados (HTTP 403). Auditoria conferida: 4 eventos exatos, reatribuicao com previous `revoked`, zero eventos por cancelamento/falha, zero inconsistencias, zero duplicatas; fixtures removidas com contagens zeradas.
+
+### C4.F. Deferimentos registrados
+
+- Administracao de identidade e convites diferida para Sprint propria (exige service_role/Admin API, secrets novos e e-mail; nada foi improvisado; a aplicacao segue sem service_role e sem `auth.users`).
+- Vinculo de perfil ja existente ao hospital diferido: sem mecanismo seguro de descoberta de perfis sob RLS; nenhum autocomplete global ou diretorio de usuarios foi criado.
+- Painel de leitura de auditoria, workspaces por perfil e design system autenticado: trilha futura; nao bloqueiam as sprints clinicas.
+
 ## D. Limitacoes conscientes
 
-- As mutacoes administrativas estao restritas a suspensao e reativacao de vinculos; papeis, revogacao, convites e criacao de contas pertencem a 04C.3+, ainda nao iniciada.
+- A gestao administrativa cobre status de vinculo e papeis hospitalares existentes; convites, criacao de contas, vinculo de perfil existente e papeis organizacionais/de plataforma permanecem diferidos sob decisao propria (DEC-058).
 - "Trocar hospital" nao e condicionado a `canSwitchContext` nesta etapa; condicionar a troca fica para decisao futura especifica.
 - Nao ha categorias profissionais (medico, enfermeiro e afins nao sao papeis nesta etapa).
 - Nao ha expiracao temporal de vinculo; suspensao e revogacao sao tratadas por `status` e `revoked_at`.
@@ -210,9 +247,9 @@ Decisao registrada em `DECISIONS.md` como DEC-057.
 
 Sem detalhamento de implementacao nesta etapa:
 
-- 04C.3: gestao de papeis, convites e demais mutacoes administrativas (ainda nao iniciada).
-- 04D: gestao de papeis e permissoes.
-- 04E: design system autenticado e workspaces iniciais.
+- Gestao de papeis hospitalares: ENTREGUE no fechamento (secao C4).
+- Administracao de identidade e convites: DIFERIDA para Sprint propria (DEC-058).
+- Design system autenticado e workspaces por perfil: trilha transversal futura, fora do fechamento da Sprint 04.
 
 ## F. Fora do escopo
 

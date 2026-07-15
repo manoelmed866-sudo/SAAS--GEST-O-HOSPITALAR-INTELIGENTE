@@ -23,6 +23,7 @@ vi.mock("@/app/(auth)/actions", () => ({
 // nao importe dependencias de servidor durante o render da pagina.
 vi.mock("@/app/(protected)/painel/admin/equipe/actions", () => ({
   changeMembershipStatusAction: vi.fn(),
+  changeMembershipRoleAction: vi.fn(),
 }));
 
 // Esta suite exercita a pagina /painel/admin/equipe da Sprint 04C.1 (listagem
@@ -51,6 +52,7 @@ const TEAM = [
     managementRef: null,
     canSuspend: false,
     canReactivate: false,
+    assignedRoles: null,
   },
   {
     displayName: "Dr. Bruno Ficticio",
@@ -59,6 +61,7 @@ const TEAM = [
     managementRef: null,
     canSuspend: false,
     canReactivate: false,
+    assignedRoles: null,
   },
   {
     displayName: "Enf. Clara Ficticia",
@@ -67,6 +70,7 @@ const TEAM = [
     managementRef: null,
     canSuspend: false,
     canReactivate: false,
+    assignedRoles: null,
   },
 ];
 
@@ -74,6 +78,13 @@ const REF_ACTIVE = "aaaa0000000000000000000000000001";
 const REF_SUSPENDED = "aaaa0000000000000000000000000002";
 const REF_PENDING = "aaaa0000000000000000000000000003";
 const REF_SELF = "aaaa0000000000000000000000000004";
+const ROLE_REF_MEMBER = "bbbb0000000000000000000000000001";
+const ROLE_REF_ADMIN = "bbbb0000000000000000000000000002";
+
+const ASSIGNABLE_ROLES = [
+  { label: "Administrador hospitalar", roleRef: ROLE_REF_ADMIN },
+  { label: "Membro hospitalar", roleRef: ROLE_REF_MEMBER },
+];
 
 // Equipe vista por um administrador com gestao: as acoes seguem os
 // indicadores do servidor (pending, o proprio ator e o ultimo admin sem acao).
@@ -85,6 +96,9 @@ const TEAM_WITH_ACTIONS = [
     managementRef: REF_ACTIVE,
     canSuspend: true,
     canReactivate: false,
+    assignedRoles: [
+      { label: "Membro hospitalar", roleRef: ROLE_REF_MEMBER, canRevoke: true },
+    ],
   },
   {
     displayName: "Dr. Bruno Ficticio",
@@ -93,6 +107,9 @@ const TEAM_WITH_ACTIONS = [
     managementRef: REF_SUSPENDED,
     canSuspend: false,
     canReactivate: true,
+    assignedRoles: [
+      { label: "Membro hospitalar", roleRef: ROLE_REF_MEMBER, canRevoke: true },
+    ],
   },
   {
     displayName: "Enf. Clara Ficticia",
@@ -101,6 +118,7 @@ const TEAM_WITH_ACTIONS = [
     managementRef: REF_PENDING,
     canSuspend: false,
     canReactivate: false,
+    assignedRoles: [],
   },
   {
     displayName: "Dr. Ultimo Admin Ficticio",
@@ -109,6 +127,13 @@ const TEAM_WITH_ACTIONS = [
     managementRef: REF_SELF,
     canSuspend: false,
     canReactivate: false,
+    assignedRoles: [
+      {
+        label: "Administrador hospitalar",
+        roleRef: ROLE_REF_ADMIN,
+        canRevoke: false,
+      },
+    ],
   },
 ];
 
@@ -176,6 +201,7 @@ describe("pagina /painel/admin/equipe (Sprint 04C.1)", () => {
       status: "allowed",
       context: ACTIVE_CONTEXT,
       members: TEAM,
+      assignableRoles: null,
     });
 
     await renderTeamPage();
@@ -192,6 +218,7 @@ describe("pagina /painel/admin/equipe (Sprint 04C.1)", () => {
       status: "allowed",
       context: ACTIVE_CONTEXT,
       members: TEAM,
+      assignableRoles: null,
     });
 
     await renderTeamPage();
@@ -230,6 +257,7 @@ describe("pagina /painel/admin/equipe (Sprint 04C.1)", () => {
       status: "allowed",
       context: ACTIVE_CONTEXT,
       members: TEAM_WITH_ACTIONS,
+      assignableRoles: ASSIGNABLE_ROLES,
     });
 
     await renderTeamPage();
@@ -242,10 +270,24 @@ describe("pagina /painel/admin/equipe (Sprint 04C.1)", () => {
     expect(
       screen.getAllByRole("button", { name: "Reativar vínculo" }),
     ).toHaveLength(1);
-    // Nenhuma acao proibida (excluir, remover, revogar, papel, convite).
+    // Gestao de papeis (fechamento da Sprint 04): revogacao apenas para
+    // papeis com canRevoke (Ana e Bruno); o papel de administrador do ultimo
+    // admin nunca aparece como revogavel; atribuicao disponivel por membro.
+    expect(
+      screen.getAllByRole("button", { name: "Revogar papel: Membro hospitalar" }),
+    ).toHaveLength(2);
     expect(
       screen.queryByRole("button", {
-        name: /excluir|remover|revogar|papel|convidar|adicionar|salvar|editar/i,
+        name: "Revogar papel: Administrador hospitalar",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Atribuir papel" }).length,
+    ).toBeGreaterThan(0);
+    // Nenhuma acao proibida (excluir, remover, convite, conta, e-mail, senha).
+    expect(
+      screen.queryByRole("button", {
+        name: /excluir|remover|convidar|adicionar|salvar|editar|senha/i,
       }),
     ).not.toBeInTheDocument();
     // A referencia opaca nunca e impressa como texto visivel.
@@ -254,6 +296,8 @@ describe("pagina /painel/admin/equipe (Sprint 04C.1)", () => {
     expect(bodyText).not.toContain(REF_SUSPENDED);
     expect(bodyText).not.toContain(REF_PENDING);
     expect(bodyText).not.toContain(REF_SELF);
+    expect(bodyText).not.toContain(ROLE_REF_MEMBER);
+    expect(bodyText).not.toContain(ROLE_REF_ADMIN);
     expectNoLeakedTokens();
   });
 
@@ -262,6 +306,7 @@ describe("pagina /painel/admin/equipe (Sprint 04C.1)", () => {
       status: "allowed",
       context: ACTIVE_CONTEXT,
       members: [],
+      assignableRoles: null,
     });
 
     await renderTeamPage();

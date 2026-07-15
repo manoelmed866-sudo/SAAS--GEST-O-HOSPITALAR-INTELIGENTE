@@ -6,6 +6,7 @@ import {
   resolveActiveHospitalTeam,
 } from "@/lib/auth/hospital-team";
 import { TeamMemberControls } from "./team-member-controls";
+import { TeamRoleControls } from "./team-role-controls";
 
 // Sprint 04C.1 - Equipe do hospital ativo (listagem somente leitura)
 //
@@ -67,6 +68,15 @@ export default async function AdminTeamPage() {
                       canReactivate={member.canReactivate}
                       canSuspend={member.canSuspend}
                       managementRef={member.managementRef}
+                    />
+                  ) : null}
+                  {member.managementRef !== null &&
+                  member.assignedRoles !== null &&
+                  team.assignableRoles !== null ? (
+                    <TeamRoleControls
+                      assignableRoles={team.assignableRoles}
+                      assignedRoles={member.assignedRoles}
+                      membershipRef={member.managementRef}
                     />
                   ) : null}
                 </li>

@@ -56,6 +56,7 @@ async function importResolver() {
 }
 
 const MANAGEMENT_REF = "0123456789abcdef0123456789abcdef";
+const ROLE_REF = "fedcba9876543210fedcba9876543210";
 
 const MEMBER_ROW = {
   display_name: "Dra. Ana Ficticia",
@@ -64,6 +65,18 @@ const MEMBER_ROW = {
   management_ref: MANAGEMENT_REF,
   can_suspend: true,
   can_reactivate: false,
+  assigned_roles: null,
+};
+
+const ASSIGNED_ROLE = {
+  label: "Membro hospitalar",
+  roleRef: ROLE_REF,
+  canRevoke: true,
+};
+
+const CATALOG_ROW = {
+  role_label: "Membro hospitalar",
+  role_ref: ROLE_REF,
 };
 
 describe("resolveActiveHospitalTeam - propagacao sem RPC", () => {
@@ -147,6 +160,7 @@ describe("resolveActiveHospitalTeam - caminho allowed", () => {
       status: "allowed",
       context: ACTIVE_CONTEXT,
       members: [],
+      assignableRoles: null,
     });
   });
 
@@ -167,8 +181,10 @@ describe("resolveActiveHospitalTeam - caminho allowed", () => {
           managementRef: MANAGEMENT_REF,
           canSuspend: true,
           canReactivate: false,
+          assignedRoles: null,
         },
       ],
+      assignableRoles: null,
     });
   });
 
@@ -182,6 +198,7 @@ describe("resolveActiveHospitalTeam - caminho allowed", () => {
           management_ref: MANAGEMENT_REF,
           can_suspend: false,
           can_reactivate: true,
+          assigned_roles: [ASSIGNED_ROLE],
         },
         {
           display_name: "Enf. Clara Ficticia",
@@ -190,6 +207,7 @@ describe("resolveActiveHospitalTeam - caminho allowed", () => {
           management_ref: null,
           can_suspend: false,
           can_reactivate: false,
+          assigned_roles: null,
         },
       ],
       error: null,
@@ -209,6 +227,7 @@ describe("resolveActiveHospitalTeam - caminho allowed", () => {
         managementRef: MANAGEMENT_REF,
         canSuspend: false,
         canReactivate: true,
+        assignedRoles: [ASSIGNED_ROLE],
       },
       {
         displayName: "Enf. Clara Ficticia",
@@ -217,6 +236,7 @@ describe("resolveActiveHospitalTeam - caminho allowed", () => {
         managementRef: null,
         canSuspend: false,
         canReactivate: false,
+        assignedRoles: null,
       },
     ]);
   });
@@ -381,5 +401,108 @@ describe("resolveActiveHospitalTeam - fail-closed na resposta da RPC", () => {
 
     expect(result).toEqual({ status: "error" });
     expect(result).not.toHaveProperty("members");
+  });
+
+  it("assigned_roles com roleRef em formato UUID -> error (referencia deve ser opaca)", async () => {
+    configureRpc({
+      data: [
+        {
+          ...MEMBER_ROW,
+          assigned_roles: [
+            {
+              ...ASSIGNED_ROLE,
+              roleRef: "33333333-3333-4333-8333-333333333333",
+            },
+          ],
+        },
+      ],
+      error: null,
+    });
+    const resolve = await importResolver();
+
+    expect(await resolve()).toEqual({ status: "error" });
+  });
+});
+
+describe("resolveActiveHospitalTeam - catalogo atribuivel (fechamento da Sprint 04)", () => {
+  function configureManageRpc(
+    teamResponse: { data: unknown; error: unknown },
+    catalogResponse: { data: unknown; error: unknown },
+  ) {
+    mocks.rpc.mockImplementation((fn: string) =>
+      Promise.resolve(
+        fn === "get_hospital_team" ? teamResponse : catalogResponse,
+      ),
+    );
+    mocks.createClient.mockResolvedValue({ rpc: mocks.rpc });
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockCapabilities({ canReadMemberships: true, canManageMemberships: true });
+  });
+
+  it("gestor recebe o catalogo atribuivel via RPC com o hospitalId do contexto", async () => {
+    configureManageRpc(
+      { data: [{ ...MEMBER_ROW, assigned_roles: [ASSIGNED_ROLE] }], error: null },
+      { data: [CATALOG_ROW], error: null },
+    );
+    const resolve = await importResolver();
+
+    const result = await resolve();
+
+    expect(mocks.rpc).toHaveBeenCalledTimes(2);
+    expect(mocks.rpc).toHaveBeenCalledWith("get_hospital_assignable_roles", {
+      target_hospital_id: ACTIVE_CONTEXT.hospitalId,
+    });
+    if (result.status !== "allowed") {
+      throw new Error("esperava allowed");
+    }
+    expect(result.assignableRoles).toEqual([
+      { label: "Membro hospitalar", roleRef: ROLE_REF },
+    ]);
+    expect(result.members[0].assignedRoles).toEqual([ASSIGNED_ROLE]);
+  });
+
+  it("leitor sem manage nunca chama o catalogo", async () => {
+    mockCapabilities({ canReadMemberships: true, canManageMemberships: false });
+    configureRpc({ data: [MEMBER_ROW], error: null });
+    const resolve = await importResolver();
+
+    const result = await resolve();
+
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    if (result.status !== "allowed") {
+      throw new Error("esperava allowed");
+    }
+    expect(result.assignableRoles).toBeNull();
+  });
+
+  it("erro do catalogo -> error (fail-closed, sem lista parcial)", async () => {
+    configureManageRpc(
+      { data: [{ ...MEMBER_ROW, assigned_roles: [] }], error: null },
+      { data: null, error: { message: "falha interna" } },
+    );
+    const resolve = await importResolver();
+
+    expect(await resolve()).toEqual({ status: "error" });
+  });
+
+  it("catalogo malformado (role_ref UUID ou campo extra) -> error", async () => {
+    configureManageRpc(
+      { data: [{ ...MEMBER_ROW, assigned_roles: [] }], error: null },
+      {
+        data: [
+          {
+            role_label: "Membro hospitalar",
+            role_ref: "33333333-3333-4333-8333-333333333333",
+          },
+        ],
+        error: null,
+      },
+    );
+    const resolve = await importResolver();
+
+    expect(await resolve()).toEqual({ status: "error" });
   });
 });

@@ -12,7 +12,7 @@ As sprints constroem progressivamente a Visao Funcional Completa. A Primeira Ver
 | Sprint 01 | Fundacao visual e tecnica inicial | Concluída |
 | Sprint 02 | Fundacao local do banco e migracoes | Concluída |
 | Sprint 03 | Autenticacao, contexto institucional e extensao visual autenticada | Concluída |
-| Sprint 04 | Administracao, governanca e design system autenticado inicial | Em andamento |
+| Sprint 04 | Administracao, governanca e design system autenticado inicial | Concluída funcionalmente (aguardando merge) |
 | Sprint 05 | Cadastro institucional hospitalar | Pendente |
 | Sprint 06 | Rede de referencia e comunicacao institucional | Pendente |
 | Sprint 07 | Episodios assistenciais | Pendente |
@@ -152,7 +152,15 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
   - Interface: `get_hospital_team` com metadados de acao somente para quem gerencia; controles cliente com confirmacao inline antes do envio; Server Action recebe apenas `managementRef` + `requestedStatus`. Nenhuma exclusao, revogacao, alteracao de papel, convite ou criacao de conta.
   - E2E em navegador real (Chromium headless via CDP, 35 verificacoes): member negado; auditor sem controles nem referencias; admin com acoes coerentes; FormData minimo; cancelamento sem mutacao; suspensao/reativacao com auditoria exata (4 eventos, zero inconsistencias); ultimo admin protegido na UI; UPDATE direto via PostgREST negado; logout validado; fixtures removidas com contagens zeradas. Decisao registrada como DEC-057.
   - Resultado validado da Sprint 04C.2: 368 testes unitarios e 198 verificacoes pgTAP aprovados; lint, typecheck, build e `db:lint` aprovados.
-- Sprint 04C.3 ainda nao iniciada (gestao de papeis, convites e demais mutacoes administrativas). Demais subfases sugeridas (nao iniciadas): 04D gestao de papeis e permissoes; 04E design system autenticado e workspaces iniciais.
+- Fechamento da Sprint 04 CONCLUIDO (2026-07-15): gestao de papeis hospitalares existentes por RPC transacional auditada, encerrando funcionalmente Administracao e Governanca. Decisao registrada como DEC-058.
+  - Referencia opaca `roles.management_ref` (128 bits): nenhum id de papel, role.code ou permission.code trafega no navegador.
+  - Hardening RPC-only de `hospital_membership_roles`: INSERT/UPDATE/DELETE diretos de authenticated revogados e policies de mutacao removidas; SELECT preservado; `organization_membership_roles`, `platform_role_assignments` e catalogos intocados.
+  - RPC unica `change_hospital_membership_role` (assign/revoke): manage fail-closed, lock por hospital, anti-enumeracao, reatribuicao sem duplicata, auto-revogacao de hospital_admin bloqueada, ultimo hospital_admin protegido; auditoria estendida (`hospital_role_assigned`/`hospital_role_revoked`, `target_role_id`, constraint de consistencia) na mesma transacao.
+  - Interface: `get_hospital_team` com papeis administraveis (manage-only), catalogo via `get_hospital_assignable_roles`, Server Action com refs opacas e componente com confirmacao inline. Auditor segue somente leitura; member sem acesso.
+  - DIFERIDOS com registro: administracao de identidade e convites (exigem service_role/Admin API — Sprint propria); vinculo de perfil existente (sem descoberta segura de perfis sob RLS); governanca visual avancada e workspaces (trilha futura, nao bloqueia sprints clinicas).
+  - E2E em navegador real (26 verificacoes) aprovado com auditoria exata e fixtures zeradas; PostgREST direto negado.
+  - Resultado validado do fechamento: 406 testes unitarios e 265 verificacoes pgTAP; lint, typecheck, build e `db:lint` aprovados.
+- Sprint 04 permanece na branch `sprint/04-administracao-governanca`, pronta para merge posterior na main. Sprint 05 NAO foi iniciada.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 

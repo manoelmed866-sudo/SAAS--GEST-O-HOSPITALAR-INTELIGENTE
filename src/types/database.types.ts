@@ -20,6 +20,7 @@ export type Database = {
           organization_id: string
           previous_status: string
           target_hospital_membership_id: string
+          target_role_id: number | null
         }
         Insert: {
           actor_profile_id: string
@@ -31,6 +32,7 @@ export type Database = {
           organization_id: string
           previous_status: string
           target_hospital_membership_id: string
+          target_role_id?: number | null
         }
         Update: {
           actor_profile_id?: string
@@ -42,6 +44,7 @@ export type Database = {
           organization_id?: string
           previous_status?: string
           target_hospital_membership_id?: string
+          target_role_id?: number | null
         }
         Relationships: [
           {
@@ -70,6 +73,13 @@ export type Database = {
             columns: ["target_hospital_membership_id"]
             isOneToOne: false
             referencedRelation: "hospital_memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "administrative_audit_events_target_role_id_fkey"
+            columns: ["target_role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
             referencedColumns: ["id"]
           },
         ]
@@ -539,6 +549,7 @@ export type Database = {
           display_name: string
           id: number
           is_system: boolean
+          management_ref: string
           scope: string
         }
         Insert: {
@@ -548,6 +559,7 @@ export type Database = {
           display_name: string
           id?: never
           is_system?: boolean
+          management_ref?: string
           scope: string
         }
         Update: {
@@ -557,6 +569,7 @@ export type Database = {
           display_name?: string
           id?: never
           is_system?: boolean
+          management_ref?: string
           scope?: string
         }
         Relationships: []
@@ -566,6 +579,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      change_hospital_membership_role: {
+        Args: {
+          requested_action: string
+          target_hospital_id: string
+          target_membership_ref: string
+          target_role_ref: string
+        }
+        Returns: string
+      }
       change_hospital_membership_status: {
         Args: {
           requested_status: string
@@ -584,9 +606,17 @@ export type Database = {
           can_switch_context: boolean
         }[]
       }
+      get_hospital_assignable_roles: {
+        Args: { target_hospital_id: string }
+        Returns: {
+          role_label: string
+          role_ref: string
+        }[]
+      }
       get_hospital_team: {
         Args: { target_hospital_id: string }
         Returns: {
+          assigned_roles: Json
           can_reactivate: boolean
           can_suspend: boolean
           display_name: string

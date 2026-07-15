@@ -137,9 +137,15 @@ describe("Sprint 04C - resolver server-side da equipe", () => {
     expect(resolver).toMatch(
       /\{\s*status:\s*"denied",\s*context:\s*result\.context\s*\}/,
     );
-    expect(countMatches(resolver, /\.rpc\(/g)).toBe(1);
+    // Duas RPCs de leitura: a equipe e, somente para quem gerencia, o
+    // catalogo hospitalar minimo atribuivel (fechamento da Sprint 04).
+    expect(countMatches(resolver, /\.rpc\(/g)).toBe(2);
     expect(resolver).toMatch(
       /\.rpc\("get_hospital_team",\s*\{\s*target_hospital_id:\s*result\.context\.hospitalId,?\s*\}\)/,
+    );
+    expect(resolver).toMatch(/canManageMemberships/);
+    expect(resolver).toMatch(
+      /\.rpc\("get_hospital_assignable_roles",\s*\{\s*target_hospital_id:\s*result\.context\.hospitalId,?\s*\}\)/,
     );
     expect(resolver).not.toMatch(/organizationId/);
   });
@@ -172,7 +178,10 @@ describe("Sprint 04C - resolver server-side da equipe", () => {
     expect(resolver).toMatch(/canReactivate:\s*boolean;/);
     // A referencia opaca so e aceita no formato 32 hex, nunca UUID.
     expect(resolver).toMatch(
-      /management_ref:\s*z\s*\.string\(\)\s*\.regex\(\/\^\[0-9a-f\]\{32\}\$\/\)\s*\.nullable\(\)/,
+      /const OPAQUE_REF_PATTERN = \/\^\[0-9a-f\]\{32\}\$\//,
+    );
+    expect(resolver).toMatch(
+      /management_ref:\s*z\s*\.string\(\)\s*\.regex\(OPAQUE_REF_PATTERN\)\s*\.nullable\(\)/,
     );
   });
 });
@@ -332,18 +341,20 @@ describe("Sprint 04C.2 - Server Action de mutacao", () => {
   it("recebe somente managementRef e requestedStatus, validados por Zod", () => {
     expect(action).toMatch(/managementRef:\s*z\.string\(\)\.regex\(\/\^\[0-9a-f\]\{32\}\$\/\)/);
     expect(action).toMatch(/requestedStatus:\s*z\.enum\(\["suspended", "active"\]\)/);
-    // Nada alem da referencia e do estado vem do formulario.
-    expect(countMatches(action, /getStringField\(formData,/g)).toBe(2);
+    // Cinco campos de formulario no arquivo: dois da mutacao de status e tres
+    // da mutacao de papeis (fechamento da Sprint 04), todos validados por Zod.
+    expect(countMatches(action, /getStringField\(formData,/g)).toBe(5);
     expect(action).not.toMatch(/formData\.get\("(hospitalId|organizationId|role|permission|actorId)"\)/);
   });
 
   it("hospital vem so do contexto; capacidade manage exigida antes da RPC", () => {
-    expect(countMatches(action, /resolveActiveHospitalCapabilities\(\)/g)).toBe(1);
+    // Uma resolucao de capacidades por Server Action (status e papeis).
+    expect(countMatches(action, /resolveActiveHospitalCapabilities\(\)/g)).toBe(2);
     expect(action).toMatch(/canManageMemberships/);
     expect(action).toMatch(
       /target_hospital_id:\s*capabilities\.context\.hospitalId/,
     );
-    expect(countMatches(action, /\.rpc\(/g)).toBe(1);
+    expect(countMatches(action, /\.rpc\(/g)).toBe(2);
     expect(action).toMatch(/change_hospital_membership_status/);
   });
 
@@ -357,7 +368,8 @@ describe("Sprint 04C.2 - Server Action de mutacao", () => {
   });
 
   it("revalida a pagina somente no sucesso e mapeia todos os outcomes", () => {
-    expect(countMatches(action, /revalidatePath\("\/painel\/admin\/equipe"\)/g)).toBe(1);
+    // Uma revalidacao por Server Action (status e papeis), sempre no sucesso.
+    expect(countMatches(action, /revalidatePath\("\/painel\/admin\/equipe"\)/g)).toBe(2);
     expect(action).toMatch(/case "updated":/);
     expect(action).toMatch(/case "self_suspension_forbidden":/);
     expect(action).toMatch(/case "last_admin_forbidden":/);

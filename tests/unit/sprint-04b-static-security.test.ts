@@ -273,7 +273,9 @@ describe("Sprint 04B - rota administrativa demonstrativa", () => {
     expect(admin).not.toMatch(/\bredirect\b/);
     expect(admin).not.toMatch(/notFound/);
     expect(admin).not.toMatch(/service[_-]?role/i);
-    expect(admin).not.toMatch(/\brole\b/i);
+    // O caminho do componente cliente de papeis (fechamento da Sprint 04) e a
+    // unica ocorrencia legitima de "role"; nenhum role code cru e interpretado.
+    expect(admin.replace(/team-role-controls/g, "")).not.toMatch(/\brole\b/i);
     expect(admin).not.toMatch(/\bscope\b/i);
     expect(admin).not.toMatch(/accessKind/);
     // Nao consulta o mapa de capacidades diretamente: so o gate decide.

@@ -583,3 +583,40 @@ Evidencia:
 - E2E em navegador real (Chromium headless via CDP, JavaScript e hidratacao reais): 35 verificacoes aprovadas, incluindo FormData minimo, cancelamento sem efeito, protecao do ultimo administrador refletida na interface, UPDATE direto via PostgREST negado (HTTP 403) e auditoria exata (1 evento por mutacao bem-sucedida, zero por cancelamento/falha, zero combinacoes inconsistentes).
 
 Motivo: permitir a primeira mutacao administrativa com o menor privilegio possivel e trilha de auditoria inviolavel, eliminando o caminho de escrita direta que dispensaria as invariantes (auto-suspensao, ultimo administrador, auditoria), sem confiar na interface, sem expor identificadores internos e sem antecipar as mutacoes mais sensiveis (papeis, revogacao, convites), que pertencem a 04C.3+ sob decisao propria.
+
+### DEC-058 - Gestao de papeis hospitalares por RPC auditada e deferimento da administracao de identidade
+
+O fechamento da Sprint 04 entrega a gestao de papeis hospitalares EXISTENTES: atribuir, revogar e reatribuir papeis de escopo hospital a vinculos do hospital ativo. Nenhum papel ou permissao e criado ou editado; papeis organizacionais e de plataforma ficam fora do escopo.
+
+Referencias opacas:
+
+- `roles.management_ref` e uma referencia publica opaca de 128 bits (32 hex, default `gen_random_bytes`, unique + check de formato), no mesmo padrao de `hospital_memberships.management_ref` (DEC-057). Nenhum id interno de papel, `role.code` ou `permission.code` trafega no navegador; a referencia nunca autoriza.
+
+Hardening RPC-only de papeis:
+
+- A auditoria previa comprovou que `authenticated` possuia INSERT (colunas) e UPDATE (`status`, `revoked_at`) diretos em `hospital_membership_roles`, com policies correspondentes da Sprint 03A — um caminho que contornaria invariantes e auditoria. Esses privilegios foram REVOGADOS (tabela e colunas, incluindo DELETE) e as policies `hospital_membership_roles_insert_allowed` e `hospital_membership_roles_update_allowed` foram REMOVIDAS. O SELECT legitimo foi preservado.
+- `organization_membership_roles`, `platform_role_assignments` e os catalogos `roles`/`permissions` permanecem intocados (dados, grants e policies): a mutacao de papeis organizacionais e de plataforma pertence a decisao futura propria.
+
+RPC unica de mutacao de papeis:
+
+- `public.change_hospital_membership_role(target_hospital_id uuid, target_membership_ref text, target_role_ref text, requested_action text)`: `plpgsql`, `volatile`, **SECURITY DEFINER** restrito, `set search_path = ''`, objetos qualificados, sem SQL dinamico, sem `service_role`, sem `auth.users`.
+- Acoes fechadas `assign`/`revoke` com resultados estruturados: `updated`, `not_allowed`, `invalid_transition`, `self_admin_role_forbidden`, `last_admin_forbidden`.
+- Autorizacao identica a DEC-057: perfil ativo + `hospital_memberships.manage` por escopo hospitalar OU organizacional, fail-closed, sem bypass de `platform_admin`. Lock por hospital antes de qualquer decisao; alvo (vinculo nao revogado, org membership e perfil ativos) e papel (scope hospital) resolvidos por referencia opaca, com o MESMO resultado para inexistente e fora de escopo (anti-enumeracao).
+- Assign: bloqueia duplicata de atribuicao ativa; quando existe atribuicao revogada, REATIVA a linha existente (`status active`, `revoked_at` null, `granted_by` atualizado), respeitando a unicidade vinculo/papel. Revoke: somente atribuicao ativa; o ator nunca revoga o proprio `hospital_admin`; o ultimo `hospital_admin` ativo qualificado (vinculo hospitalar ativo, org membership ativo, perfil ativo, papel ativo nao revogado) nao pode ser revogado — administrador com multiplos papeis continua administrador.
+
+Auditoria estendida (sem tabela paralela):
+
+- `administrative_audit_events` suporta os novos eventos de forma coerente: `hospital_role_assigned` e `hospital_role_revoked`, coluna opcional `target_role_id` (FK `roles`) e constraint cruzada ampliada — eventos de vinculo exigem `target_role_id` nulo; eventos de papel exigem o papel e apenas as transicoes `none|revoked -> active` (assigned) e `active -> revoked` (revoked). Append-only, RLS fechado, zero grants, insercao exclusivamente pela RPC na mesma transacao; falha e cancelamento nao geram evento.
+
+Leitura para a interface:
+
+- `get_hospital_team` ganhou `assigned_roles` (jsonb com `label`, `roleRef`, `canRevoke`), exposto SOMENTE a quem possui manage; o indicador `canRevoke` reflete as invariantes (self/ultimo admin) e e apenas orientacao de interface — a RPC revalida tudo. Nova RPC `get_hospital_assignable_roles(uuid)` (manage-only) devolve o catalogo hospitalar minimo (rotulo + referencia opaca).
+- Server Action `changeMembershipRoleAction`: Zod estrito com apenas `membershipRef`, `roleRef` e `requestedAction`; hospital exclusivamente do contexto ativo revalidado; revalidacao somente em sucesso; mensagens genericas. Componente `TeamRoleControls`: select do catalogo (excluindo papeis ja ativos), confirmacao explicita inline e cancelamento sem mutacao.
+
+Deferimentos registrados (nao bloqueiam o fechamento da Sprint 04):
+
+- **Administracao de identidade e convites diferida para Sprint propria.** Convites, criacao de contas e recuperacao de senha exigem Supabase Admin API/service_role, secrets server-side novos e envio de e-mail — arquitetura privilegiada que nao sera improvisada no runtime normal. A aplicacao continua sem service_role e sem ler `auth.users`.
+- **Vinculo de perfil ja existente ao hospital diferido.** Nao existe hoje mecanismo seguro de descoberta/selecao de perfis sob RLS (o proprio 04C.1 comprovou que hospital_admin nao le `organization_memberships`); qualquer atalho criaria pesquisa global por e-mail ou diretorio de usuarios, ampliando exposicao. Sera tratado junto da administracao de identidade.
+- **Governanca visual avancada** (painel de leitura de auditoria, relatorios, workspaces por perfil, design system autenticado) permanece trilha futura; `canReadAudit` ja existe como capacidade para quando essa leitura for entregue.
+
+Motivo: concluir funcionalmente a governanca da equipe hospitalar — listagem, status de vinculo e papeis — com um unico padrao de seguranca (referencias opacas, RPC-only, SECURITY DEFINER restrito, lock, invariantes e auditoria transacional), fechando todos os caminhos diretos de mutacao administrativa sem inventar arquitetura de identidade fora de decisao propria.

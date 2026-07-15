@@ -188,8 +188,8 @@ select is(
     join pg_catalog.pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proname = 'get_hospital_team'
   ),
-  'TABLE(display_name text, membership_status text, role_labels text[], management_ref text, can_suspend boolean, can_reactivate boolean)',
-  'retorno minimo da 04C.1 estendido pela 04C.2 com metadados de acao; sem UUID e sem e-mail'
+  'TABLE(display_name text, membership_status text, role_labels text[], management_ref text, can_suspend boolean, can_reactivate boolean, assigned_roles jsonb)',
+  'retorno minimo da 04C.1 estendido pela 04C.2/fechamento com metadados de acao e papeis administraveis; sem UUID e sem e-mail'
 );
 
 select function_privs_are(
