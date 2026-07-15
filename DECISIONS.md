@@ -458,3 +458,165 @@ Principios preservados para a Sprint 04:
 - A interface nunca sera a unica fonte de autorizacao; capacidades serao sempre revalidadas no servidor sob RLS.
 
 Motivo: encerrar formalmente a Sprint 03 com honestidade de escopo, evitando implementar uma camada de autorizacao granular incompleta sob pressao de numeracao, e transferindo a resolucao de capacidades efetivas para a sprint correta (Sprint 04), onde a uniao dos tres escopos podera ser modelada, testada e documentada com o cuidado necessario.
+
+### DEC-054 - Capacidades efetivas do hospital ativo sob SECURITY INVOKER
+
+A Sprint 04A introduz uma camada de capacidades semanticas resolvida no servidor, a partir do modelo relacional de papeis e permissoes da Sprint 03A. A resolucao considera os tres escopos de autorizacao, relativamente ao hospital ativo: plataforma (`platform_role_assignments`), organizacao (`organization_membership_roles`, na organizacao proprietaria do hospital) e hospital (`hospital_membership_roles`, no hospital alvo).
+
+Composicao e semantica:
+
+- A combinacao entre escopos e monotonica por OR (uniao): uma capacidade e verdadeira quando qualquer escopo qualificante possui a permissao correspondente. Nao existe negacao nem precedencia nesta etapa; duplicidade entre escopos nao altera o resultado.
+- A capacidade so nasce de permissao explicitamente atribuida por `role_permissions`. Nomes de papeis nao concedem privilegios por si.
+- `platform_admin` NAO recebe automaticamente todas as capacidades: recebe apenas as derivadas de permissoes de escopo plataforma explicitamente atribuidas (hoje, `hospitals.read` mapeia para `canReadHospital`).
+
+Contrato tecnico:
+
+- Funcao `public.get_effective_hospital_capabilities(target_hospital_id uuid)`, `language sql`, `stable`, **SECURITY INVOKER**, `set search_path = ''`, retornando exatamente cinco booleanos semanticos e sempre uma unica linha: `can_read_hospital`, `can_read_memberships`, `can_manage_memberships`, `can_read_audit`, `can_switch_context`.
+- Por ser SECURITY INVOKER, o RLS da Sprint 03A permanece aplicavel a cada tabela lida; nao foi usado `service_role`. `EXECUTE` e revogado de PUBLIC e de `anon` e concedido apenas a `authenticated`. Nenhuma policy, RLS ou grant de tabela foi alterado; nenhuma role ou permission semeada foi modificada.
+- No escopo hospital-only, o gate de organizacao ativa e garantido de forma transitiva pela visibilidade do hospital sob RLS (a policy de `public.hospitals` delega a `app_private.current_user_has_hospital_permission`, que exige organizacao ativa), evitando que a funcao precise ler `public.organizations` para esse caso.
+
+Consumidor server-side:
+
+- `resolveActiveHospitalCapabilities()` (`src/lib/auth/capabilities.ts`) nao recebe argumentos. O hospital alvo vem exclusivamente do contexto ativo revalidado por `resolveActiveContext()`; envia a RPC somente `target_hospital_id`, nunca `organizationId`, e devolve o mesmo `ActiveContext` revalidado.
+- A resposta da RPC e validada com Zod estrito (`.strict()`, exatamente cinco booleanos) e exige array de tamanho exatamente 1. Retorno malformado (erro, ausencia de linha, mais de uma linha, campo ausente/nulo/nao booleano ou propriedade inesperada) falha fechado como `{ status: "error" }`, sem capacidade parcial nem fallback permissivo.
+- Nenhum codigo cru de permissao, papel ou scope e exposto ao consumidor: o TypeScript recebe somente cinco booleanos semanticos (`canReadHospital`, `canReadMemberships`, `canManageMemberships`, `canReadAudit`, `canSwitchContext`). Nenhuma permissao, papel ou capacidade e armazenada no cookie, que permanece o ponteiro minimo `{organizationId, hospitalId, v}`.
+
+Limite consciente:
+
+- O consumo visual das capacidades (painel, gates de UI) foi adiado; o painel ainda nao consome capacidades nesta etapa.
+- SECURITY DEFINER nao foi adotado. Uma funcao `security definer` (que permitiria um gate de organizacao ativa explicito e uniforme nos tres escopos) so podera ser avaliada futuramente mediante necessidade comprovada e nova decisao.
+
+Motivo: entregar a fundacao de autorizacao granular por capacidade de forma segura e testavel, mantendo o RLS como barreira final, sem expor o modelo interno de permissoes, sem confiar na interface e sem ampliar privilegios, preparando os gates de modulo e a administracao das proximas subfases da Sprint 04.
+
+### DEC-055 - Consumo visual de capacidades nunca substitui gate server-side
+
+A Sprint 04B introduz o primeiro consumo das capacidades efetivas entregues pela Sprint 04A. A regra central desta decisao: ocultar um link na interface e somente comportamento de interface; o acesso direto a rota deve continuar sendo avaliado no servidor, a cada requisicao. A ausencia do link nunca e a protecao.
+
+Gate server-side reutilizavel:
+
+- O helper `evaluateHospitalCapability(capability)` (`src/lib/auth/capability-gate.ts`) avalia UMA capacidade do hospital ativo e retorna um resultado discriminado: `allowed` e `denied` (ambos com o mesmo `ActiveContext` revalidado), `absent`, `invalid` e `error` propagados do resolver.
+- O argumento e restrito em TypeScript a `keyof HospitalCapabilities`; nenhuma string generica e aceita.
+- O helper nao redireciona, nao chama `notFound`, nao consulta o Supabase diretamente (sem `createClient`, RPC ou tabelas), nao le cookie, nao recebe `hospitalId`/`organizationId` e nao interpreta papel, scope ou codigo cru de permissao.
+- `allowed`/`denied` devolvem apenas o contexto: o mapa completo de capacidades nunca e retornado pelo gate, evitando que consumidores acumulem conhecimento de autorizacao alem do necessario.
+
+Painel:
+
+- O painel usa `resolveActiveHospitalCapabilities()` como fonte unica de contexto e capacidades, numa unica chamada apos `requirePortalAccess()`; nao chama mais `resolveActiveContext()` diretamente.
+- `canManageMemberships` controla apenas a visibilidade do link "Gerenciar equipe" (para `/painel/admin/equipe`). Quando falso, o link simplesmente nao existe: sem botao desabilitado e sem explicacao de permissao interna.
+- "Trocar hospital" NAO e condicionado a `canSwitchContext` nesta etapa: permanece disponivel para todo contexto `active`, pois a barreira da troca continua no servidor sob RLS. Condicionar a troca a capacidade fica para decisao futura especifica.
+
+Rota administrativa demonstrativa:
+
+- `/painel/admin/equipe` e Server Component `force-dynamic` que aplica `requirePortalAccess()` e entao `evaluateHospitalCapability("canManageMemberships")`, renderizando cinco estados: `allowed`, `denied`, `absent`, `invalid` e `error`.
+- `denied` e diferente de acesso negado institucional: o usuario tem acesso ao portal e contexto ativo valido, apenas nao possui esta capacidade; a mensagem e generica e nao revela papel, scope ou nome de capacidade.
+- A rota e demonstrativa e nao possui CRUD, formulario administrativo, Server Action de mutacao ou consulta direta a Supabase. Qualquer CRUD da equipe pertence a Sprint 04C.
+
+Invariantes preservados:
+
+- Nenhum papel ou codigo cru de permissao e exposto na interface.
+- Nenhuma capacidade e armazenada no cookie, que permanece o ponteiro minimo `{organizationId, hospitalId, v}`.
+- O RLS permanece a barreira final para operacoes de dados; os gates de pagina protegem navegacao e renderizacao, nao substituem o banco.
+
+Evidencia E2E:
+
+- E2E assistido comprovou o usuario `member` negado por URL direta (estado `denied` renderizado sem o conteudo autorizado, mesmo sem o link existir no painel) e o `hospital_admin` autorizado (link visivel e rota `allowed` com o hospital do contexto).
+- O E2E foi realizado por fluxo HTTP real contra o Next.js e o Supabase locais, com sessoes isoladas por usuario e formularios submetidos por progressive enhancement, sem navegador grafico.
+- Validacao visual (screenshots) e hidratacao client-side permanecem fora desta evidencia; as assercoes cobrem o HTML renderizado no servidor, onde vivem todas as garantias da 04B.
+
+Motivo: estabelecer desde o primeiro consumo visual que capacidade e assunto do servidor. A interface apenas reflete a autorizacao ja decidida sob RLS; nenhuma rota administrativa presente ou futura pode confiar na ausencia de link, em estado visual, em URL ou em cookie como protecao.
+
+### DEC-056 - Listagem da equipe por RPC SECURITY DEFINER com validacao interna
+
+A Sprint 04C.1 entrega a listagem somente leitura da equipe do hospital ativo. A auditoria da 04C comprovou a necessidade prevista na DEC-054: a leitura da equipe e estruturalmente bloqueada sob RLS para o `hospital_admin`, porque a policy de SELECT de `public.organization_memberships` exige permissao ORGANIZACIONAL (`organization_memberships.read`), que o papel hospitalar nao possui; sem ler `organization_memberships` nao ha como ligar o vinculo hospitalar ao `profile`. **SECURITY INVOKER herdaria exatamente esse bloqueio e nao atende ao hospital_admin.** Afrouxar a RLS de `organization_memberships` ampliaria a visibilidade de vinculos organizacionais alem da necessidade e foi rejeitado.
+
+Decisao:
+
+- SECURITY DEFINER e autorizado SOMENTE para esta RPC estreita de leitura: `public.get_hospital_team(target_hospital_id uuid)`, `language sql`, `stable`, `set search_path = ''`, objetos totalmente qualificados, sem SQL dinamico e sem `service_role`.
+- A autorizacao e validada EXPLICITAMENTE dentro da funcao, antes de qualquer linha, reproduzindo a semantica de `canReadMemberships` da 04A: perfil atual ativo, organizacao proprietaria ativa, hospital alvo ativo e permissao explicita `hospital_memberships.read` por papel hospitalar ativo/nao revogado no hospital alvo OU papel organizacional ativo/nao revogado na organizacao proprietaria. Fail-closed: sem permissao, zero linhas.
+- A identidade e resolvida pelas funcoes `app_private` existentes (`current_profile_is_active`, `current_user_has_hospital_permission`, `current_user_has_organization_permission`), que ja sao SECURITY DEFINER desde a Sprint 03A. Nenhum acesso por nome de papel e nenhum bypass automatico para `platform_admin`.
+- Retorno minimo por integrante: `display_name`, `membership_status` e `role_labels` (apenas `roles.display_name`, nunca `role.code`). Nenhuma leitura de `auth.users`, nenhum e-mail, nenhum UUID no retorno. `EXECUTE` revogado de PUBLIC e `anon`, concedido apenas a `authenticated`.
+- Regras da lista: somente o hospital alvo e a organizacao proprietaria; perfil inativo, vinculo organizacional nao ativo e vinculo hospitalar `revoked` sao excluidos; `suspended` e `pending` aparecem com o proprio status; papeis somente de escopo hospital, ativos e nao revogados; ordenacao deterministica; uma pessoa por linha.
+- A RLS permanece INALTERADA: nenhuma policy, grant de tabela, role ou permission foi modificada. A listagem e somente leitura; qualquer mutacao (suspender, reativar, atribuir/revogar papel, criar vinculo) pertence a 04C.2+ e exigira decisao propria, com invariantes de ultimo administrador e trilha de auditoria.
+
+Consumo:
+
+- O resolver `resolveActiveHospitalTeam()` nao recebe argumentos: o hospital vem exclusivamente do contexto ativo revalidado; o gate semantico `canReadMemberships` decide `denied` no servidor sem chamar a RPC; a resposta e validada com Zod estrito e falha fechada.
+- O painel exibe "Ver equipe" por `canReadMemberships` (auditor enxerga; member nao); `canManageMemberships` deixou de controlar a visibilidade da listagem.
+
+Motivo: destravar a administracao da equipe sem afrouxar RLS nem confiar na interface, abrindo a excecao SECURITY DEFINER prevista na DEC-054 de forma minima, explicita, testada por pgTAP (24 verificacoes no arquivo 008) e restrita a leitura.
+
+### DEC-057 - Mutacoes de vinculos hospitalares por RPC transacional auditada
+
+A Sprint 04C.2 entrega as primeiras mutacoes administrativas reais: suspensao e reativacao de vinculos hospitalares, restritas a `active <-> suspended`. `pending` e `revoked` ficam fora do escopo (`revoked` permanece terminal). Nenhuma exclusao, revogacao, alteracao de papel, convite ou criacao de conta e possivel nesta etapa.
+
+Referencia opaca:
+
+- `hospital_memberships.management_ref` e uma referencia publica opaca de 128 bits (32 hex, `gen_random_bytes`, unique + check de formato). O UUID interno do vinculo NUNCA trafega no HTML nem no FormData.
+- A referencia opaca NAO autoriza: e apenas um endereco de alvo. A RPC revalida integralmente a autorizacao, o escopo e o estado antes de qualquer alteracao; referencia inexistente e referencia fora do escopo retornam o mesmo resultado, sem enumeracao.
+
+RPC unica de mutacao:
+
+- `public.change_hospital_membership_status(target_hospital_id uuid, target_management_ref text, requested_status text)`, `plpgsql`, `volatile`, **SECURITY DEFINER** restrito, `set search_path = ''`, objetos totalmente qualificados, sem SQL dinamico, sem `service_role` e sem leitura de `auth.users`.
+- Autorizacao explicita fail-closed: perfil ativo e `hospital_memberships.manage` por papel hospitalar OU organizacional (ativo, nao revogado), via funcoes `app_private` existentes; sem acesso por nome de papel e sem bypass de `platform_admin`.
+- Lock por hospital (`SELECT ... FOR UPDATE`) serializa mutacoes administrativas concorrentes no mesmo hospital; a checagem de ultimo administrador ocorre DEPOIS do lock, enxergando o estado consolidado. O lock foi comprovado estruturalmente; teste real de concorrencia nao foi executado.
+- Invariantes: auto-suspensao bloqueada (`self_suspension_forbidden`); o ultimo `hospital_admin` ativo nao pode ser suspenso (`last_admin_forbidden`); transicoes invalidas retornam `invalid_transition`.
+
+Auditoria transacional:
+
+- `public.administrative_audit_events` e append-only e SEM acesso direto da aplicacao: RLS habilitado sem policy permissiva e zero grants para `anon`/`authenticated`. A insercao ocorre exclusivamente dentro da RPC, na MESMA transacao da alteracao: qualquer falha reverte ambas; cancelamento e falha nao geram evento.
+- Constraint cruzada `administrative_audit_events_transition_consistency_check`: cada `event_type` aceita somente a transicao que descreve (`hospital_membership_suspended`: active->suspended; `hospital_membership_reactivated`: suspended->active). Qualquer outra combinacao falha, mesmo vinda de codigo privilegiado.
+
+Hardening RPC-only:
+
+- O `UPDATE (status)` direto de `authenticated` em `hospital_memberships`, concedido na Sprint 03A antes da existencia da RPC, foi REVOGADO, e a policy `hospital_memberships_update_allowed` foi REMOVIDA (migration complementar `20260714030000`).
+- A RPC e o UNICO caminho de alteracao de status de vinculo hospitalar. Nenhum grant novo foi concedido; SELECT/INSERT existentes, policies de leitura, RLS de outras tabelas, `organization_memberships` e as tabelas de papeis permanecem intocados.
+
+Interface:
+
+- `get_hospital_team` foi estendida com metadados de acao (`management_ref`, `can_suspend`, `can_reactivate`) expostos APENAS a quem possui manage; auditor recebe referencia nula e indicadores falsos. Indicadores sao orientacao de interface e nunca autorizam; a RPC revalida tudo.
+- A Server Action recebe do navegador SOMENTE `managementRef` e `requestedStatus` (Zod estrito); o hospital vem exclusivamente do contexto ativo revalidado. O componente cliente exige confirmacao explicita inline (Confirmar suspensao/reativacao + Cancelar) antes de qualquer envio; nenhuma mutacao ocorre sem confirmacao.
+- Nenhum e-mail, UUID, papel, permissao ou codigo cru trafega ou e exibido; mensagens de resultado sao genericas.
+
+Evidencia:
+
+- 59 verificacoes pgTAP no arquivo 009 (198 no total), incluindo: privilegios UPDATE zerados (tabela e coluna), ausencia de policy de UPDATE, rejeicao de INSERT incoerente na auditoria, RPC executavel somente por `authenticated` e auditoria sem privilegios diretos.
+- E2E em navegador real (Chromium headless via CDP, JavaScript e hidratacao reais): 35 verificacoes aprovadas, incluindo FormData minimo, cancelamento sem efeito, protecao do ultimo administrador refletida na interface, UPDATE direto via PostgREST negado (HTTP 403) e auditoria exata (1 evento por mutacao bem-sucedida, zero por cancelamento/falha, zero combinacoes inconsistentes).
+
+Motivo: permitir a primeira mutacao administrativa com o menor privilegio possivel e trilha de auditoria inviolavel, eliminando o caminho de escrita direta que dispensaria as invariantes (auto-suspensao, ultimo administrador, auditoria), sem confiar na interface, sem expor identificadores internos e sem antecipar as mutacoes mais sensiveis (papeis, revogacao, convites), que pertencem a 04C.3+ sob decisao propria.
+
+### DEC-058 - Gestao de papeis hospitalares por RPC auditada e deferimento da administracao de identidade
+
+O fechamento da Sprint 04 entrega a gestao de papeis hospitalares EXISTENTES: atribuir, revogar e reatribuir papeis de escopo hospital a vinculos do hospital ativo. Nenhum papel ou permissao e criado ou editado; papeis organizacionais e de plataforma ficam fora do escopo.
+
+Referencias opacas:
+
+- `roles.management_ref` e uma referencia publica opaca de 128 bits (32 hex, default `gen_random_bytes`, unique + check de formato), no mesmo padrao de `hospital_memberships.management_ref` (DEC-057). Nenhum id interno de papel, `role.code` ou `permission.code` trafega no navegador; a referencia nunca autoriza.
+
+Hardening RPC-only de papeis:
+
+- A auditoria previa comprovou que `authenticated` possuia INSERT (colunas) e UPDATE (`status`, `revoked_at`) diretos em `hospital_membership_roles`, com policies correspondentes da Sprint 03A — um caminho que contornaria invariantes e auditoria. Esses privilegios foram REVOGADOS (tabela e colunas, incluindo DELETE) e as policies `hospital_membership_roles_insert_allowed` e `hospital_membership_roles_update_allowed` foram REMOVIDAS. O SELECT legitimo foi preservado.
+- `organization_membership_roles`, `platform_role_assignments` e os catalogos `roles`/`permissions` permanecem intocados (dados, grants e policies): a mutacao de papeis organizacionais e de plataforma pertence a decisao futura propria.
+
+RPC unica de mutacao de papeis:
+
+- `public.change_hospital_membership_role(target_hospital_id uuid, target_membership_ref text, target_role_ref text, requested_action text)`: `plpgsql`, `volatile`, **SECURITY DEFINER** restrito, `set search_path = ''`, objetos qualificados, sem SQL dinamico, sem `service_role`, sem `auth.users`.
+- Acoes fechadas `assign`/`revoke` com resultados estruturados: `updated`, `not_allowed`, `invalid_transition`, `self_admin_role_forbidden`, `last_admin_forbidden`.
+- Autorizacao identica a DEC-057: perfil ativo + `hospital_memberships.manage` por escopo hospitalar OU organizacional, fail-closed, sem bypass de `platform_admin`. Lock por hospital antes de qualquer decisao; alvo (vinculo nao revogado, org membership e perfil ativos) e papel (scope hospital) resolvidos por referencia opaca, com o MESMO resultado para inexistente e fora de escopo (anti-enumeracao).
+- Assign: bloqueia duplicata de atribuicao ativa; quando existe atribuicao revogada, REATIVA a linha existente (`status active`, `revoked_at` null, `granted_by` atualizado), respeitando a unicidade vinculo/papel. Revoke: somente atribuicao ativa; o ator nunca revoga o proprio `hospital_admin`; o ultimo `hospital_admin` ativo qualificado (vinculo hospitalar ativo, org membership ativo, perfil ativo, papel ativo nao revogado) nao pode ser revogado — administrador com multiplos papeis continua administrador.
+
+Auditoria estendida (sem tabela paralela):
+
+- `administrative_audit_events` suporta os novos eventos de forma coerente: `hospital_role_assigned` e `hospital_role_revoked`, coluna opcional `target_role_id` (FK `roles`) e constraint cruzada ampliada — eventos de vinculo exigem `target_role_id` nulo; eventos de papel exigem o papel e apenas as transicoes `none|revoked -> active` (assigned) e `active -> revoked` (revoked). Append-only, RLS fechado, zero grants, insercao exclusivamente pela RPC na mesma transacao; falha e cancelamento nao geram evento.
+
+Leitura para a interface:
+
+- `get_hospital_team` ganhou `assigned_roles` (jsonb com `label`, `roleRef`, `canRevoke`), exposto SOMENTE a quem possui manage; o indicador `canRevoke` reflete as invariantes (self/ultimo admin) e e apenas orientacao de interface — a RPC revalida tudo. Nova RPC `get_hospital_assignable_roles(uuid)` (manage-only) devolve o catalogo hospitalar minimo (rotulo + referencia opaca).
+- Server Action `changeMembershipRoleAction`: Zod estrito com apenas `membershipRef`, `roleRef` e `requestedAction`; hospital exclusivamente do contexto ativo revalidado; revalidacao somente em sucesso; mensagens genericas. Componente `TeamRoleControls`: select do catalogo (excluindo papeis ja ativos), confirmacao explicita inline e cancelamento sem mutacao.
+
+Deferimentos registrados (nao bloqueiam o fechamento da Sprint 04):
+
+- **Administracao de identidade e convites diferida para Sprint propria.** Convites, criacao de contas e recuperacao de senha exigem Supabase Admin API/service_role, secrets server-side novos e envio de e-mail — arquitetura privilegiada que nao sera improvisada no runtime normal. A aplicacao continua sem service_role e sem ler `auth.users`.
+- **Vinculo de perfil ja existente ao hospital diferido.** Nao existe hoje mecanismo seguro de descoberta/selecao de perfis sob RLS (o proprio 04C.1 comprovou que hospital_admin nao le `organization_memberships`); qualquer atalho criaria pesquisa global por e-mail ou diretorio de usuarios, ampliando exposicao. Sera tratado junto da administracao de identidade.
+- **Governanca visual avancada** (painel de leitura de auditoria, relatorios, workspaces por perfil, design system autenticado) permanece trilha futura; `canReadAudit` ja existe como capacidade para quando essa leitura for entregue.
+
+Motivo: concluir funcionalmente a governanca da equipe hospitalar — listagem, status de vinculo e papeis — com um unico padrao de seguranca (referencias opacas, RPC-only, SECURITY DEFINER restrito, lock, invariantes e auditoria transacional), fechando todos os caminhos diretos de mutacao administrativa sem inventar arquitetura de identidade fora de decisao propria.

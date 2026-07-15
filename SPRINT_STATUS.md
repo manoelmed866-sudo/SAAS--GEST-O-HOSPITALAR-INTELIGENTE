@@ -12,7 +12,7 @@ As sprints constroem progressivamente a Visao Funcional Completa. A Primeira Ver
 | Sprint 01 | Fundacao visual e tecnica inicial | Concluída |
 | Sprint 02 | Fundacao local do banco e migracoes | Concluída |
 | Sprint 03 | Autenticacao, contexto institucional e extensao visual autenticada | Concluída |
-| Sprint 04 | Administracao, governanca e design system autenticado inicial | Próxima |
+| Sprint 04 | Administracao, governanca e design system autenticado inicial | Concluída funcionalmente (aguardando merge) |
 | Sprint 05 | Cadastro institucional hospitalar | Pendente |
 | Sprint 06 | Rede de referencia e comunicacao institucional | Pendente |
 | Sprint 07 | Episodios assistenciais | Pendente |
@@ -123,6 +123,44 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
 - Resultado consolidado da Sprint 03 no encerramento: 176 testes unitarios e 94 verificacoes pgTAP aprovados; lint, typecheck, build e `db:lint` aprovados; validacoes E2E das etapas 03D2 e 03D4 aprovadas; nenhum segredo versionado; nenhuma pendencia de fixture.
 - Pendencias transferidas para a Sprint 04: resolucao de capacidades efetivas com uniao dos escopos de plataforma, organizacao e hospital; capacidades semanticas; gestao de usuarios e vinculos; gestao de papeis e permissoes; convites; interfaces administrativas; workspaces por perfil; design system autenticado; gates de modulos por capacidade.
 - Sprint 04 e a proxima etapa e ainda nao foi iniciada; nenhuma capacidade efetiva foi implementada na Sprint 03.
+
+## Observacao sobre Sprint 04
+
+- Sprint 04 EM ANDAMENTO na branch `sprint/04-administracao-governanca` (criada a partir do merge da Sprint 03 na main).
+- Sprint 04A CONCLUIDA: contrato SQL de capacidades efetivas do hospital ativo e consumidor server-side TypeScript.
+  - Funcao `public.get_effective_hospital_capabilities(uuid)`, `SECURITY INVOKER`, une os tres escopos (plataforma, organizacao e hospital) por OR monotonica e devolve cinco booleanos semanticos: `canReadHospital`, `canReadMemberships`, `canManageMemberships`, `canReadAudit`, `canSwitchContext`.
+  - Resolver `resolveActiveHospitalCapabilities()` sem argumentos; o hospital vem apenas do contexto ativo revalidado; validacao Zod estrita com array de tamanho 1; fail-closed em resposta malformada; nenhum codigo cru de permissao exposto. Tipos Supabase regenerados apenas para a nova funcao.
+  - Capacidades efetivas disponiveis SOMENTE no servidor; nenhum painel ou interface consome as capacidades ainda; o cookie permanece minimo. Decisao registrada como DEC-054.
+- Resultado validado da Sprint 04A: 227 testes unitarios e 115 verificacoes pgTAP aprovados; lint, typecheck, build e `db:lint` aprovados. Nenhuma policy, RLS ou grant de tabela foi alterado; nenhuma interface ou CRUD implementado; nenhum modulo clinico criado.
+- Sprint 04B CONCLUIDA: primeiro consumo visual das capacidades entregue, com gate server-side demonstrado.
+  - Helper `evaluateHospitalCapability(capability)` em `src/lib/auth/capability-gate.ts`: argumento restrito a `keyof HospitalCapabilities`, resultado discriminado `allowed`/`denied` (com o mesmo `ActiveContext`) e propagacao de `absent`/`invalid`/`error`; sem Supabase direto, sem cookie, sem redirect e sem devolver o mapa completo de capacidades.
+  - Painel consome `resolveActiveHospitalCapabilities()` como fonte unica de contexto e capacidades; link "Gerenciar equipe" condicionado somente a `canManageMemberships`; "Trocar hospital" permanece incondicional no estado `active`; estados `active`/`absent`/`invalid`/`error` preservados.
+  - Rota administrativa demonstrativa `/painel/admin/equipe` (Server Component `force-dynamic`): `requirePortalAccess()` e depois `evaluateHospitalCapability("canManageMemberships")`, com cinco estados renderizados; acesso direto por URL continua avaliado no servidor; a rota ainda NAO possui CRUD, formulario administrativo ou mutacao (reservados a 04C).
+  - E2E assistido aprovado por fluxo HTTP real com sessoes isoladas: `member` sem link e negado por URL direta; `hospital_admin` com link e autorizado; logout validado; fixtures integralmente removidas com contagens finais zeradas.
+  - Resultado validado da Sprint 04B: 292 testes unitarios e 115 verificacoes pgTAP aprovados; lint, typecheck, build e `db:lint` aprovados. Nenhuma migration, RPC, RLS, cookie ou Proxy alterado. Decisao registrada como DEC-055.
+- Sprint 04C EM ANDAMENTO (administracao real de usuarios e vinculos).
+- Sprint 04C.1 CONCLUIDA: listagem somente leitura da equipe do hospital ativo.
+  - RPC `public.get_hospital_team(uuid)` SECURITY DEFINER com validacao interna explicita (perfil ativo + `hospital_memberships.read` por escopo hospitalar ou organizacional), fail-closed, sem bypass de platform_admin, sem auth.users, sem e-mail, sem UUID e sem role.code no retorno; EXECUTE somente para authenticated; RLS inalterada. Necessidade comprovada: SECURITY INVOKER herdaria o bloqueio de organization_memberships e nao atenderia ao hospital_admin. Decisao registrada como DEC-056.
+  - Resolver `resolveActiveHospitalTeam()` sem argumentos: gate por `canReadMemberships` (denied sem RPC), Zod estrito, lista vazia valida, mesmo `ActiveContext` revalidado.
+  - Painel passa a exibir "Ver equipe" por `canReadMemberships` (auditor enxerga; member nao); a pagina `/painel/admin/equipe` lista nome, status traduzido (Ativo/Suspenso/Pendente) e papeis amigaveis, sem CRUD, sem formulario administrativo e sem Server Action de dominio.
+  - E2E assistido aprovado com tres perfis isolados: member sem link e negado por URL direta; hospital_auditor e hospital_admin autorizados com a listagem completa (suspended -> Suspenso, pending -> Pendente, revoked ausente); logout validado; fixtures integralmente removidas.
+  - Resultado validado da Sprint 04C.1: 330 testes unitarios e 139 verificacoes pgTAP aprovados; lint, typecheck, build e `db:lint` aprovados.
+- Sprint 04C.2 CONCLUIDA: suspensao e reativacao de vinculos hospitalares com auditoria transacional.
+  - Referencia publica opaca `management_ref` (128 bits) em `hospital_memberships`: o UUID interno nunca trafega em HTML ou FormData; a referencia nao autoriza nada.
+  - RPC unica `public.change_hospital_membership_status(uuid, text, text)`, SECURITY DEFINER com `search_path` vazio: autorizacao explicita fail-closed por `hospital_memberships.manage` (escopo hospitalar OU organizacional), lock por hospital, auto-suspensao bloqueada, ultimo administrador ativo protegido (checagem apos o lock), transicoes restritas a `active <-> suspended` (`pending` e `revoked` fora do escopo). Auditoria em `administrative_audit_events` na MESMA transacao, tabela sem nenhum acesso direto da aplicacao e com constraint de consistencia evento/transicao.
+  - Hardening RPC-only: `UPDATE (status)` de `authenticated` em `hospital_memberships` revogado e policy `hospital_memberships_update_allowed` removida; a RPC e o unico caminho de alteracao de status. `organization_memberships` e tabelas de papeis intocadas.
+  - Interface: `get_hospital_team` com metadados de acao somente para quem gerencia; controles cliente com confirmacao inline antes do envio; Server Action recebe apenas `managementRef` + `requestedStatus`. Nenhuma exclusao, revogacao, alteracao de papel, convite ou criacao de conta.
+  - E2E em navegador real (Chromium headless via CDP, 35 verificacoes): member negado; auditor sem controles nem referencias; admin com acoes coerentes; FormData minimo; cancelamento sem mutacao; suspensao/reativacao com auditoria exata (4 eventos, zero inconsistencias); ultimo admin protegido na UI; UPDATE direto via PostgREST negado; logout validado; fixtures removidas com contagens zeradas. Decisao registrada como DEC-057.
+  - Resultado validado da Sprint 04C.2: 368 testes unitarios e 198 verificacoes pgTAP aprovados; lint, typecheck, build e `db:lint` aprovados.
+- Fechamento da Sprint 04 CONCLUIDO (2026-07-15): gestao de papeis hospitalares existentes por RPC transacional auditada, encerrando funcionalmente Administracao e Governanca. Decisao registrada como DEC-058.
+  - Referencia opaca `roles.management_ref` (128 bits): nenhum id de papel, role.code ou permission.code trafega no navegador.
+  - Hardening RPC-only de `hospital_membership_roles`: INSERT/UPDATE/DELETE diretos de authenticated revogados e policies de mutacao removidas; SELECT preservado; `organization_membership_roles`, `platform_role_assignments` e catalogos intocados.
+  - RPC unica `change_hospital_membership_role` (assign/revoke): manage fail-closed, lock por hospital, anti-enumeracao, reatribuicao sem duplicata, auto-revogacao de hospital_admin bloqueada, ultimo hospital_admin protegido; auditoria estendida (`hospital_role_assigned`/`hospital_role_revoked`, `target_role_id`, constraint de consistencia) na mesma transacao.
+  - Interface: `get_hospital_team` com papeis administraveis (manage-only), catalogo via `get_hospital_assignable_roles`, Server Action com refs opacas e componente com confirmacao inline. Auditor segue somente leitura; member sem acesso.
+  - DIFERIDOS com registro: administracao de identidade e convites (exigem service_role/Admin API — Sprint propria); vinculo de perfil existente (sem descoberta segura de perfis sob RLS); governanca visual avancada e workspaces (trilha futura, nao bloqueia sprints clinicas).
+  - E2E em navegador real (26 verificacoes) aprovado com auditoria exata e fixtures zeradas; PostgREST direto negado.
+  - Resultado validado do fechamento: 406 testes unitarios e 265 verificacoes pgTAP; lint, typecheck, build e `db:lint` aprovados.
+- Sprint 04 permanece na branch `sprint/04-administracao-governanca`, pronta para merge posterior na main. Sprint 05 NAO foi iniciada.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 

@@ -9,6 +9,81 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      administrative_audit_events: {
+        Row: {
+          actor_profile_id: string
+          created_at: string
+          event_type: string
+          hospital_id: string
+          id: string
+          new_status: string
+          organization_id: string
+          previous_status: string
+          target_hospital_membership_id: string
+          target_role_id: number | null
+        }
+        Insert: {
+          actor_profile_id: string
+          created_at?: string
+          event_type: string
+          hospital_id: string
+          id?: string
+          new_status: string
+          organization_id: string
+          previous_status: string
+          target_hospital_membership_id: string
+          target_role_id?: number | null
+        }
+        Update: {
+          actor_profile_id?: string
+          created_at?: string
+          event_type?: string
+          hospital_id?: string
+          id?: string
+          new_status?: string
+          organization_id?: string
+          previous_status?: string
+          target_hospital_membership_id?: string
+          target_role_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "administrative_audit_events_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "administrative_audit_events_hospital_id_fkey"
+            columns: ["hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "administrative_audit_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "administrative_audit_events_target_hospital_membership_id_fkey"
+            columns: ["target_hospital_membership_id"]
+            isOneToOne: false
+            referencedRelation: "hospital_memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "administrative_audit_events_target_role_id_fkey"
+            columns: ["target_role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hospital_membership_roles: {
         Row: {
           created_at: string
@@ -73,6 +148,7 @@ export type Database = {
           created_by: string | null
           hospital_id: string
           id: string
+          management_ref: string
           organization_id: string
           organization_membership_id: string
           status: string
@@ -83,6 +159,7 @@ export type Database = {
           created_by?: string | null
           hospital_id: string
           id?: string
+          management_ref?: string
           organization_id: string
           organization_membership_id: string
           status?: string
@@ -93,6 +170,7 @@ export type Database = {
           created_by?: string | null
           hospital_id?: string
           id?: string
+          management_ref?: string
           organization_id?: string
           organization_membership_id?: string
           status?: string
@@ -471,6 +549,7 @@ export type Database = {
           display_name: string
           id: number
           is_system: boolean
+          management_ref: string
           scope: string
         }
         Insert: {
@@ -480,6 +559,7 @@ export type Database = {
           display_name: string
           id?: never
           is_system?: boolean
+          management_ref?: string
           scope: string
         }
         Update: {
@@ -489,6 +569,7 @@ export type Database = {
           display_name?: string
           id?: never
           is_system?: boolean
+          management_ref?: string
           scope?: string
         }
         Relationships: []
@@ -498,7 +579,52 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      change_hospital_membership_role: {
+        Args: {
+          requested_action: string
+          target_hospital_id: string
+          target_membership_ref: string
+          target_role_ref: string
+        }
+        Returns: string
+      }
+      change_hospital_membership_status: {
+        Args: {
+          requested_status: string
+          target_hospital_id: string
+          target_management_ref: string
+        }
+        Returns: string
+      }
+      get_effective_hospital_capabilities: {
+        Args: { target_hospital_id: string }
+        Returns: {
+          can_manage_memberships: boolean
+          can_read_audit: boolean
+          can_read_hospital: boolean
+          can_read_memberships: boolean
+          can_switch_context: boolean
+        }[]
+      }
+      get_hospital_assignable_roles: {
+        Args: { target_hospital_id: string }
+        Returns: {
+          role_label: string
+          role_ref: string
+        }[]
+      }
+      get_hospital_team: {
+        Args: { target_hospital_id: string }
+        Returns: {
+          assigned_roles: Json
+          can_reactivate: boolean
+          can_suspend: boolean
+          display_name: string
+          management_ref: string
+          membership_status: string
+          role_labels: string[]
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

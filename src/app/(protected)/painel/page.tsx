@@ -1,22 +1,34 @@
 import Link from "next/link";
 import { logoutAction } from "@/app/(auth)/actions";
 import { requirePortalAccess } from "@/lib/auth/access";
-import { resolveActiveContext } from "@/lib/auth/context";
+import { resolveActiveHospitalCapabilities } from "@/lib/auth/capabilities";
 
-// Sprint 03D4 - Painel contextual (Etapa 2)
+// Sprint 04B2 - Painel contextual com capacidades efetivas
 //
 // O painel primeiro aplica o gate de acesso (requirePortalAccess) e so entao
-// resolve o contexto ativo (resolveActiveContext), renderizando distintamente
-// os quatro estados active/absent/invalid/error. O painel nao consulta o
-// Supabase diretamente, nao usa createClient/service role, nao le cookies
-// diretamente, nao redireciona e nunca exibe UUIDs. Nome e codigo do hospital
-// vem exclusivamente do contexto revalidado sob RLS.
+// resolve, numa unica chamada, o contexto ativo E as capacidades efetivas do
+// hospital ativo (resolveActiveHospitalCapabilities, 04A2), renderizando
+// distintamente os quatro estados active/absent/invalid/error. O painel nao
+// chama resolveActiveContext diretamente, nao consulta o Supabase, nao usa
+// createClient/service role, nao le cookies diretamente, nao redireciona e
+// nunca exibe UUIDs. Nome e codigo do hospital vem exclusivamente do contexto
+// revalidado sob RLS.
+//
+// Link condicional (Sprint 04C.1):
+// "Ver equipe" so e renderizado quando canReadMemberships e verdadeiro; a
+// listagem e somente leitura, entao a visibilidade segue a capacidade de
+// LEITURA (auditor enxerga; member nao), e nao canManageMemberships. Quando
+// falso, o link simplesmente nao existe: nada de botao desabilitado nem
+// explicacao de permissao interna. Nenhum nome de capacidade, papel, scope ou
+// codigo de permissao e exibido ao usuario. "Trocar hospital" permanece em todo
+// contexto active, independentemente de canSwitchContext, pois a barreira final
+// da troca continua no servidor sob RLS.
 
 export const dynamic = "force-dynamic";
 
 export default async function PanelPage() {
   const access = await requirePortalAccess();
-  const context = await resolveActiveContext();
+  const context = await resolveActiveHospitalCapabilities();
 
   return (
     <section className="section" aria-labelledby="panel-title">
@@ -65,12 +77,19 @@ export default async function PanelPage() {
 
           <div className="state-actions">
             {context.status === "active" ? (
-              <Link
-                className="button button--secondary"
-                href="/painel/selecionar-contexto"
-              >
-                Trocar hospital
-              </Link>
+              <>
+                <Link
+                  className="button button--secondary"
+                  href="/painel/selecionar-contexto"
+                >
+                  Trocar hospital
+                </Link>
+                {context.capabilities.canReadMemberships ? (
+                  <Link className="button" href="/painel/admin/equipe">
+                    Ver equipe
+                  </Link>
+                ) : null}
+              </>
             ) : null}
 
             {context.status === "absent" ? (
