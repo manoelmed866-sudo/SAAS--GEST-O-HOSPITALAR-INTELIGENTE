@@ -89,6 +89,11 @@ export default async function PanelPage() {
                     Ver equipe
                   </Link>
                 ) : null}
+                {context.capabilities.canReadStructure ? (
+                  <Link className="button" href="/painel/admin/estrutura">
+                    Estrutura do hospital
+                  </Link>
+                ) : null}
               </>
             ) : null}
 

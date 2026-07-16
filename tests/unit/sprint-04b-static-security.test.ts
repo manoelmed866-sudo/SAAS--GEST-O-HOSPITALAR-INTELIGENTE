@@ -207,9 +207,13 @@ describe("Sprint 04B - painel com capacidades efetivas", () => {
     expect(panel).toMatch(
       /capabilities\.canReadMemberships \?[\s\S]{0,200}?["'`]\/painel\/admin\/equipe["'`][\s\S]{0,200}?Ver equipe/,
     );
-    // canReadMemberships e a UNICA capacidade consumida pelo painel; a
+    // canReadMemberships e canReadStructure (Sprint 05) sao as capacidades consumidas pelo painel; a
     // visibilidade da listagem NAO depende mais de canManageMemberships.
-    expect(countMatches(panel, /capabilities\./g)).toBe(1);
+    expect(countMatches(panel, /capabilities\./g)).toBe(2);
+    // Sprint 05: o painel tambem condiciona o link da estrutura a canReadStructure.
+    expect(panel).toMatch(/capabilities\.canReadStructure/);
+    expect(panel).toContain("/painel/admin/estrutura");
+    expect(panel).toContain("Estrutura do hospital");
     expect(panel).not.toMatch(/capabilities\.canManageMemberships/);
     // Sem alternativa desabilitada quando a capacidade e falsa.
     expect(panel).not.toMatch(/disabled/i);

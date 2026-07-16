@@ -620,3 +620,32 @@ Deferimentos registrados (nao bloqueiam o fechamento da Sprint 04):
 - **Governanca visual avancada** (painel de leitura de auditoria, relatorios, workspaces por perfil, design system autenticado) permanece trilha futura; `canReadAudit` ja existe como capacidade para quando essa leitura for entregue.
 
 Motivo: concluir funcionalmente a governanca da equipe hospitalar — listagem, status de vinculo e papeis — com um unico padrao de seguranca (referencias opacas, RPC-only, SECURITY DEFINER restrito, lock, invariantes e auditoria transacional), fechando todos os caminhos diretos de mutacao administrativa sem inventar arquitetura de identidade fora de decisao propria.
+
+### DEC-059 - Estrutura institucional por RLS direta SECURITY INVOKER, sem RPC nova
+
+A Sprint 05 modela a estrutura institucional do hospital (unidades, setores, leitos e recursos institucionais) como CONFIGURACAO administrativa nao clinica, em quatro tabelas multi-tenant novas: `hospital_units`, `hospital_sectors`, `hospital_beds` e `hospital_resources`.
+
+Arquitetura de acesso:
+
+- Diferentemente da governanca de vinculos e papeis (DEC-056/057/058, que exigiram RPC SECURITY DEFINER por necessidade comprovada), a estrutura institucional NAO exige leitura alem do que o RLS ja autoriza nem invariantes transacionais entre linhas de tenants distintos. Por isso a Sprint 05 usa o caminho de MENOR privilegio: leituras e mutacoes diretas sob o cliente autenticado, com o RLS como barreira final — SECURITY INVOKER por construcao. NENHUMA funcao SECURITY DEFINER nova foi criada.
+- Novas permissoes semanticas `hospital_structure.read` e `hospital_structure.manage` nos escopos organization e hospital, mapeadas somente a organization_admin (ambas), hospital_admin (ambas) e auditores (read). `member` nao le a administracao da estrutura; `platform_admin` nao possui bypass.
+- `get_effective_hospital_capabilities` estendida (drop + recreate, semantica da DEC-054 preservada) com `can_read_structure` e `can_manage_structure`; o consumo visual segue a DEC-055 (link condicional no painel + gate server-side na rota).
+
+Grants minimos e policies fail-closed:
+
+- Privilegios base zerados; SELECT de tabela; INSERT restrito as colunas de cadastro; UPDATE restrito a `status`. `status` inicial, `management_ref` e `created_by` nascem por default e nao sao gravaveis pelo cliente. Nenhum DELETE (desativacao logica por status). Nenhuma policy para anon.
+- SELECT exige `hospital_structure.read`; INSERT/UPDATE exigem `hospital_structure.manage` (escopo hospitalar OU organizacional); INSERT exige adicionalmente hospital ativo visivel sob RLS.
+
+Invariantes no banco:
+
+- FKs COMPOSTAS garantem que setor pertence a unidade do MESMO hospital e leito a setor do MESMO hospital, alem de hospital/organizacao coerentes em todas as linhas.
+- Unicidade de codigo por hospital; checks de formato (slug, tamanhos, status).
+- Triggers de pai ativo (funcoes comuns em `app_private`, sem SECURITY DEFINER, sob RLS do proprio usuario): filho nao nasce sob pai inativo; pai invisivel equivale a inexistente.
+- Referencias publicas opacas `management_ref` (padrao DEC-057) em todas as tabelas: nenhum UUID interno trafega em HTML/FormData; o resolver expoe referencias SOMENTE a quem possui manage e as Server Actions revalidam tudo no servidor.
+
+Deferimentos registrados:
+
+- Trilha de auditoria transacional para mutacoes de estrutura: diferida. A estrutura registra autoria (`created_by`) e timestamps; a trilha de eventos (`administrative_audit_events`) permanece reservada a governanca de vinculos/papeis. Reavaliacao na Sprint 20 (auditoria ampliada) ou em decisao propria.
+- Edicao de nome/descricao (rename) de itens existentes; tipologia avancada de leitos/recursos; cascata de desativacao; leitura da estrutura por papeis assistenciais.
+
+Motivo: entregar a estrutura hospitalar configuravel por instituicao com o MENOR privilegio possivel, provando que o modelo de permissoes semanticas + RLS da Sprint 03A sustenta um modulo administrativo completo sem nenhuma superficie SECURITY DEFINER nova, sem service_role e sem exposicao de identificadores internos.

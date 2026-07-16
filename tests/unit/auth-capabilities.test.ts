@@ -33,6 +33,8 @@ const ALL_FALSE_ROW = {
   can_manage_memberships: false,
   can_read_audit: false,
   can_switch_context: false,
+  can_read_structure: false,
+  can_manage_structure: false,
 };
 
 const ALL_TRUE_ROW = {
@@ -41,6 +43,8 @@ const ALL_TRUE_ROW = {
   can_manage_memberships: true,
   can_read_audit: true,
   can_switch_context: true,
+  can_read_structure: true,
+  can_manage_structure: true,
 };
 
 function mockActiveContext() {
@@ -66,7 +70,7 @@ describe("resolveActiveHospitalCapabilities - caminho active", () => {
     vi.clearAllMocks();
   });
 
-  it("mapeia cinco false", async () => {
+  it("mapeia sete false", async () => {
     mockActiveContext();
     configureRpc({ data: [ALL_FALSE_ROW], error: null });
     const resolve = await importResolver();
@@ -82,11 +86,13 @@ describe("resolveActiveHospitalCapabilities - caminho active", () => {
         canManageMemberships: false,
         canReadAudit: false,
         canSwitchContext: false,
+        canReadStructure: false,
+        canManageStructure: false,
       },
     });
   });
 
-  it("mapeia cinco true", async () => {
+  it("mapeia sete true", async () => {
     mockActiveContext();
     configureRpc({ data: [ALL_TRUE_ROW], error: null });
     const resolve = await importResolver();
@@ -102,6 +108,8 @@ describe("resolveActiveHospitalCapabilities - caminho active", () => {
         canManageMemberships: true,
         canReadAudit: true,
         canSwitchContext: true,
+        canReadStructure: true,
+        canManageStructure: true,
       },
     });
   });
@@ -116,6 +124,8 @@ describe("resolveActiveHospitalCapabilities - caminho active", () => {
           can_manage_memberships: true,
           can_read_audit: false,
           can_switch_context: true,
+          can_read_structure: true,
+          can_manage_structure: false,
         },
       ],
       error: null,
@@ -133,6 +143,8 @@ describe("resolveActiveHospitalCapabilities - caminho active", () => {
         canManageMemberships: true,
         canReadAudit: false,
         canSwitchContext: true,
+        canReadStructure: true,
+        canManageStructure: false,
       },
     });
   });
@@ -147,6 +159,8 @@ describe("resolveActiveHospitalCapabilities - caminho active", () => {
           can_manage_memberships: false,
           can_read_audit: true,
           can_switch_context: false,
+          can_read_structure: true,
+          can_manage_structure: false,
         },
       ],
       error: null,
@@ -163,6 +177,8 @@ describe("resolveActiveHospitalCapabilities - caminho active", () => {
     expect(result.capabilities.canManageMemberships).toBe(false);
     expect(result.capabilities.canReadAudit).toBe(true);
     expect(result.capabilities.canSwitchContext).toBe(false);
+    expect(result.capabilities.canReadStructure).toBe(true);
+    expect(result.capabilities.canManageStructure).toBe(false);
   });
 
   it("devolve exatamente o ActiveContext revalidado", async () => {
@@ -282,6 +298,8 @@ describe("resolveActiveHospitalCapabilities - fail-closed na resposta da RPC", (
       can_read_memberships: true,
       can_manage_memberships: true,
       can_read_audit: true,
+      can_read_structure: true,
+      can_manage_structure: true,
       // sem can_switch_context
     };
     configureRpc({ data: [missing], error: null });
@@ -326,6 +344,8 @@ describe("resolveActiveHospitalCapabilities - fail-closed na resposta da RPC", (
       can_read_memberships: true,
       can_read_audit: true,
       can_switch_context: true,
+      can_read_structure: true,
+      can_manage_structure: true,
       // sem can_manage_memberships
     };
     configureRpc({ data: [missing], error: null });

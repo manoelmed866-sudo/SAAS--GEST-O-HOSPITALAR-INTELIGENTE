@@ -163,18 +163,20 @@ describe("Sprint 04A - capabilities.ts: contrato e validacao", () => {
     "}",
   );
 
-  it("HospitalCapabilities tem exatamente as cinco capacidades camelCase", () => {
+  it("HospitalCapabilities tem exatamente as sete capacidades camelCase", () => {
     for (const cap of [
       "canReadHospital",
       "canReadMemberships",
       "canManageMemberships",
       "canReadAudit",
       "canSwitchContext",
+      "canReadStructure",
+      "canManageStructure",
     ]) {
       expect(capabilitiesType).toContain(cap);
     }
-    // Exatamente cinco propriedades booleanas no tipo.
-    expect((capabilitiesType.match(/:\s*boolean/g) ?? []).length).toBe(5);
+    // Exatamente sete propriedades booleanas no tipo (Sprint 05 adiciona duas).
+    expect((capabilitiesType.match(/:\s*boolean/g) ?? []).length).toBe(7);
   });
 
   it("HospitalCapabilitiesResult preserva somente os quatro estados", () => {
@@ -184,7 +186,7 @@ describe("Sprint 04A - capabilities.ts: contrato e validacao", () => {
     expect(states).toEqual(new Set(["active", "absent", "invalid", "error"]));
   });
 
-  it("o schema da linha usa .strict() com os cinco campos snake_case", () => {
+  it("o schema da linha usa .strict() com os sete campos snake_case", () => {
     const schema = sliceBody(full, "capabilitiesRowSchema", "capabilitiesResponseSchema");
     for (const field of [
       "can_read_hospital",
@@ -192,10 +194,12 @@ describe("Sprint 04A - capabilities.ts: contrato e validacao", () => {
       "can_manage_memberships",
       "can_read_audit",
       "can_switch_context",
+      "can_read_structure",
+      "can_manage_structure",
     ]) {
       expect(schema).toContain(field);
     }
-    expect((schema.match(/z\.boolean\(\)/g) ?? []).length).toBe(5);
+    expect((schema.match(/z\.boolean\(\)/g) ?? []).length).toBe(7);
     expect(schema).toMatch(/\.strict\(\)/);
   });
 
@@ -323,7 +327,7 @@ describe("Sprint 04A - tipos gerados", () => {
     expect(types).toMatch(/Args:\s*\{\s*target_hospital_id:\s*string\s*\}/);
   });
 
-  it("Returns e array com exatamente os cinco booleanos snake_case e sem string", () => {
+  it("Returns e array com exatamente os sete booleanos snake_case e sem string", () => {
     const fnBlock = sliceBody(types, "get_effective_hospital_capabilities:", "}[]");
     const returnsBlock = fnBlock.slice(fnBlock.indexOf("Returns: {"));
     for (const field of [
@@ -332,10 +336,12 @@ describe("Sprint 04A - tipos gerados", () => {
       "can_manage_memberships",
       "can_read_audit",
       "can_switch_context",
+      "can_read_structure",
+      "can_manage_structure",
     ]) {
       expect(returnsBlock).toContain(field);
     }
-    expect((returnsBlock.match(/:\s*boolean/g) ?? []).length).toBe(5);
+    expect((returnsBlock.match(/:\s*boolean/g) ?? []).length).toBe(7);
     expect(returnsBlock).not.toMatch(/:\s*string/);
     expect(types).toMatch(/Returns:\s*\{[\s\S]*?\}\[\]/);
   });
