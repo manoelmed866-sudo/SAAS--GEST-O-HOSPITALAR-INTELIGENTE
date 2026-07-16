@@ -84,6 +84,70 @@ export type Database = {
           },
         ]
       }
+      hospital_beds: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          display_name: string
+          hospital_id: string
+          id: string
+          management_ref: string
+          organization_id: string
+          sector_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          hospital_id: string
+          id?: string
+          management_ref?: string
+          organization_id: string
+          sector_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          hospital_id?: string
+          id?: string
+          management_ref?: string
+          organization_id?: string
+          sector_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_beds_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_beds_hospital_organization_fk"
+            columns: ["hospital_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "hospital_beds_sector_hospital_fk"
+            columns: ["sector_id", "hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospital_sectors"
+            referencedColumns: ["id", "hospital_id"]
+          },
+        ]
+      }
       hospital_membership_roles: {
         Row: {
           created_at: string
@@ -196,6 +260,181 @@ export type Database = {
             columns: ["organization_membership_id", "organization_id"]
             isOneToOne: false
             referencedRelation: "organization_memberships"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      hospital_resources: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_name: string
+          hospital_id: string
+          id: string
+          management_ref: string
+          organization_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_name: string
+          hospital_id: string
+          id?: string
+          management_ref?: string
+          organization_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_name?: string
+          hospital_id?: string
+          id?: string
+          management_ref?: string
+          organization_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_resources_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_resources_hospital_organization_fk"
+            columns: ["hospital_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id", "organization_id"]
+          },
+        ]
+      }
+      hospital_sectors: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          display_name: string
+          hospital_id: string
+          id: string
+          management_ref: string
+          organization_id: string
+          status: string
+          unit_id: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          hospital_id: string
+          id?: string
+          management_ref?: string
+          organization_id: string
+          status?: string
+          unit_id: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          hospital_id?: string
+          id?: string
+          management_ref?: string
+          organization_id?: string
+          status?: string
+          unit_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_sectors_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_sectors_hospital_organization_fk"
+            columns: ["hospital_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
+            referencedColumns: ["id", "organization_id"]
+          },
+          {
+            foreignKeyName: "hospital_sectors_unit_hospital_fk"
+            columns: ["unit_id", "hospital_id"]
+            isOneToOne: false
+            referencedRelation: "hospital_units"
+            referencedColumns: ["id", "hospital_id"]
+          },
+        ]
+      }
+      hospital_units: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          display_name: string
+          hospital_id: string
+          id: string
+          management_ref: string
+          organization_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          hospital_id: string
+          id?: string
+          management_ref?: string
+          organization_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          hospital_id?: string
+          id?: string
+          management_ref?: string
+          organization_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hospital_units_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hospital_units_hospital_organization_fk"
+            columns: ["hospital_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "hospitals"
             referencedColumns: ["id", "organization_id"]
           },
         ]
@@ -600,9 +839,11 @@ export type Database = {
         Args: { target_hospital_id: string }
         Returns: {
           can_manage_memberships: boolean
+          can_manage_structure: boolean
           can_read_audit: boolean
           can_read_hospital: boolean
           can_read_memberships: boolean
+          can_read_structure: boolean
           can_switch_context: boolean
         }[]
       }

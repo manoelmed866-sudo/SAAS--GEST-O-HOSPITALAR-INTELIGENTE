@@ -12,8 +12,8 @@ As sprints constroem progressivamente a Visao Funcional Completa. A Primeira Ver
 | Sprint 01 | Fundacao visual e tecnica inicial | Concluída |
 | Sprint 02 | Fundacao local do banco e migracoes | Concluída |
 | Sprint 03 | Autenticacao, contexto institucional e extensao visual autenticada | Concluída |
-| Sprint 04 | Administracao, governanca e design system autenticado inicial | Concluída funcionalmente (aguardando merge) |
-| Sprint 05 | Cadastro institucional hospitalar | Pendente |
+| Sprint 04 | Administracao, governanca e design system autenticado inicial | Concluída |
+| Sprint 05 | Cadastro institucional hospitalar | Concluída funcionalmente (aguardando merge) |
 | Sprint 06 | Rede de referencia e comunicacao institucional | Pendente |
 | Sprint 07 | Episodios assistenciais | Pendente |
 | Sprint 08 | Mapa do hospital | Pendente |
@@ -160,7 +160,18 @@ Historico longitudinal, linha do tempo, evolucoes assistenciais, complementacao,
   - DIFERIDOS com registro: administracao de identidade e convites (exigem service_role/Admin API — Sprint propria); vinculo de perfil existente (sem descoberta segura de perfis sob RLS); governanca visual avancada e workspaces (trilha futura, nao bloqueia sprints clinicas).
   - E2E em navegador real (26 verificacoes) aprovado com auditoria exata e fixtures zeradas; PostgREST direto negado.
   - Resultado validado do fechamento: 406 testes unitarios e 265 verificacoes pgTAP; lint, typecheck, build e `db:lint` aprovados.
-- Sprint 04 permanece na branch `sprint/04-administracao-governanca`, pronta para merge posterior na main. Sprint 05 NAO foi iniciada.
+- Sprint 04 foi INTEGRADA na main por merge `--no-ff` (10e0b12, 2026-07-15); a branch `sprint/04-administracao-governanca` permanece preservada.
+
+## Observacao sobre Sprint 05
+
+- Sprint 05 CONCLUIDA FUNCIONALMENTE (2026-07-15) na branch `sprint/05-cadastro-institucional`, criada a partir da main pos-merge da Sprint 04; aguardando merge posterior na main.
+- Objetivo entregue: estrutura institucional do hospital configuravel por instituicao — unidades (`hospital_units`), setores (`hospital_sectors`), leitos (`hospital_beds`) e recursos institucionais (`hospital_resources`) — como configuracao administrativa NAO clinica. Cadastro de recurso nao significa recurso utilizado; ocupacao de leito pertence a Sprint 08 e recursos assistenciais a Sprint 16.
+- Modelo multi-tenant garantido no banco: `organization_id`/`hospital_id` obrigatorios com FKs COMPOSTAS para `hospitals(id, organization_id)`; setor pertence a unidade do MESMO hospital e leito a setor do MESMO hospital (FKs compostas); triggers impedem criar filho sob pai inativo; codigo unico por hospital; nenhum DELETE (desativacao logica por status); referencia publica opaca `management_ref` em todas as tabelas (nenhum UUID interno em HTML/FormData).
+- Autorizacao: novas permissoes semanticas `hospital_structure.read`/`hospital_structure.manage` (escopos organization e hospital) mapeadas a organization_admin e hospital_admin (gestao) e auditores (leitura); member sem acesso; platform_admin sem bypass. `get_effective_hospital_capabilities` estendida para SETE booleanos (`can_read_structure`, `can_manage_structure`), preservando SECURITY INVOKER. NENHUMA funcao SECURITY DEFINER nova: leituras e mutacoes diretas sob o cliente autenticado com RLS fail-closed e grants minimos como barreira final (DEC-059).
+- Aplicacao: resolver `resolveActiveHospitalStructure()` (gate por canReadStructure, hospital exclusivamente do contexto ativo revalidado, aninhamento montado no servidor, referencias opacas somente para gestores, fail-closed); Server Actions de criacao e ativacao/desativacao com Zod estrito e enum fechado; pagina `/painel/admin/estrutura` com estados allowed/vazio/denied/absent/invalid/error e confirmacao explicita inline; painel com link "Estrutura do hospital" condicionado a canReadStructure.
+- Resultado validado da Sprint 05: 508 testes unitarios e 341 verificacoes pgTAP aprovados (76 novas no teste 011; testes 001 e suites 04A/04B atualizados legitimamente); lint, typecheck, build e `db:lint` aprovados; E2E em navegador real (Chromium headless via CDP contra build de producao, 28 verificacoes) aprovado com fixtures integralmente removidas e zero orfaos.
+- DIFERIDOS com registro (DEC-059): edicao de nome/descricao de itens; trilha de auditoria transacional para mutacoes de estrutura (autoria e timestamps registrados; reavaliacao na Sprint 20); cascata de desativacao; tipologia avancada de leitos/recursos; leitura da estrutura por papeis assistenciais.
+- Sprint 06 NAO foi iniciada.
 
 ## Observacao sobre Sprint 06 e Sprint 13
 

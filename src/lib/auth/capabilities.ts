@@ -29,6 +29,8 @@ export type HospitalCapabilities = {
   canManageMemberships: boolean;
   canReadAudit: boolean;
   canSwitchContext: boolean;
+  canReadStructure: boolean;
+  canManageStructure: boolean;
 };
 
 export type ActiveHospitalCapabilities = {
@@ -46,8 +48,8 @@ export type HospitalCapabilitiesResult =
   | { status: "invalid" }
   | { status: "error" };
 
-// Schema estrito da linha devolvida pela RPC: exatamente cinco booleanos, sem
-// propriedades adicionais.
+// Schema estrito da linha devolvida pela RPC: exatamente sete booleanos, sem
+// propriedades adicionais (Sprint 05 adiciona os dois booleanos de estrutura).
 const capabilitiesRowSchema = z
   .object({
     can_read_hospital: z.boolean(),
@@ -55,6 +57,8 @@ const capabilitiesRowSchema = z
     can_manage_memberships: z.boolean(),
     can_read_audit: z.boolean(),
     can_switch_context: z.boolean(),
+    can_read_structure: z.boolean(),
+    can_manage_structure: z.boolean(),
   })
   .strict();
 
@@ -98,6 +102,8 @@ export async function resolveActiveHospitalCapabilities(): Promise<HospitalCapab
       canManageMemberships: row.can_manage_memberships,
       canReadAudit: row.can_read_audit,
       canSwitchContext: row.can_switch_context,
+      canReadStructure: row.can_read_structure,
+      canManageStructure: row.can_manage_structure,
     },
   };
 }

@@ -200,21 +200,20 @@ select is(
         'inventory',
         'departments',
         'sectors',
-        'hospital_units',
         'billing',
         'subscriptions'
       )
   ),
   0,
-  'nenhuma tabela clinica, operacional ou comercial fora de escopo foi criada'
+  'nenhuma tabela clinica, operacional ou comercial fora de escopo foi criada (estrutura hospitalar passou a ser escopo legitimo na Sprint 05)'
 );
 
 select is((select count(*)::integer from public.roles where scope = 'platform'), 1, 'um papel platform foi criado');
 select is((select count(*)::integer from public.roles where scope = 'organization'), 3, 'tres papeis organization foram criados');
 select is((select count(*)::integer from public.roles where scope = 'hospital'), 3, 'tres papeis hospital foram criados');
 select is((select count(*)::integer from public.permissions where scope = 'platform'), 7, 'sete permissoes platform foram criadas');
-select is((select count(*)::integer from public.permissions where scope = 'organization'), 8, 'oito permissoes organization foram criadas');
-select is((select count(*)::integer from public.permissions where scope = 'hospital'), 5, 'cinco permissoes hospital foram criadas');
+select is((select count(*)::integer from public.permissions where scope = 'organization'), 10, 'dez permissoes organization existem (oito da Sprint 03A e duas de estrutura da Sprint 05)');
+select is((select count(*)::integer from public.permissions where scope = 'hospital'), 7, 'sete permissoes hospital existem (cinco da Sprint 03A e duas de estrutura da Sprint 05)');
 
 select is(
   (
